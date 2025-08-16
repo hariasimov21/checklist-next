@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: checklist
+    ports:
+      - "51213:5432"   # expone 5432 del contenedor como 51213 en tu Mac
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
