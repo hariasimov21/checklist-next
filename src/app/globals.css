@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 👇 Esto le dice a Tailwind v4 que el variant `dark:` se active por la clase .dark en <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
