@@ -1,10 +1,23 @@
 "use client";
 
-import React, { useMemo, useState, useTransition } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  useCallback,
+  useRef,
+} from "react";
 import {
-  addNote, toggleNote, editNote, removeNote,
-  createCard, updateCard, deleteCard,
-  addTag, removeTag
+  addNote,
+  toggleNote,
+  editNote,
+  removeNote,
+  createCard,
+  updateCard,
+  deleteCard,
+  addTag,
+  removeTag,
 } from "@/app/actions";
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
@@ -12,6 +25,7 @@ import { ModeToggle } from "@/components/ui/toogle";
 type Note = { id: string; text: string; done: boolean };
 type Card = { id: string; title: string; tags: string[]; createdAt: string | Date; notes: Note[] };
 
+/* --------- UI --------- */
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -22,7 +36,6 @@ function ProgressBar({ value }: { value: number }) {
     </div>
   );
 }
-
 function Chip({ label }: { label: string }) {
   return (
     <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -31,37 +44,194 @@ function Chip({ label }: { label: string }) {
   );
 }
 
+/* Fila de nota optimizada */
+const NoteRow = React.memo(function NoteRow({
+  note,
+  cardId,
+  onToggleOptimistic,
+  onRemoveOptimistic,
+  onEditOnBlurOptimistic,
+}: {
+  note: Note;
+  cardId: string;
+  onToggleOptimistic: (cardId: string, noteId: string, currentDone: boolean) => void;
+  onRemoveOptimistic: (cardId: string, noteId: string) => void;
+  onEditOnBlurOptimistic: (cardId: string, noteId: string, newText: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <li className="flex flex-col sm:flex-row sm:items-start gap-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={note.done}
+          onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
+          className="mt-0.5 size-4"
+        />
+        {/* Uncontrolled: escribe fluido y guarda en blur */}
+        <input
+          defaultValue={note.text}
+          ref={inputRef}
+          onBlur={(e) => onEditOnBlurOptimistic(cardId, note.id, e.target.value.trim())}
+          className={`flex-1 px-2 py-1 rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 ${
+            note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
+          } w-full`}
+        />
+      </div>
+      <button
+        onClick={() => onRemoveOptimistic(cardId, note.id)}
+        className="text-xs text-red-500 hover:underline self-start"
+      >
+        Quitar
+      </button>
+    </li>
+  );
+});
+
 export default function ChecklistBoard({ initialCards }: { initialCards: Card[] }) {
   const [isPending, startTransition] = useTransition();
+
+  /* ========= ESTADO LOCAL PARA UI OPTIMISTA ========= */
+  const [cards, setCards] = useState<Card[]>(initialCards);
 
   // Selección y búsqueda
   const [selectedId, setSelectedId] = useState<string | null>(initialCards[0]?.id ?? null);
   const [search, setSearch] = useState("");
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return initialCards;
-    return initialCards.filter(c =>
+    if (!q) return cards;
+    return cards.filter((c) =>
       c.title.toLowerCase().includes(q) ||
-      c.tags.some(t => t.toLowerCase().includes(q)) ||
-      c.notes.some(n => n.text.toLowerCase().includes(q))
+      c.tags.some((t) => t.toLowerCase().includes(q)) ||
+      c.notes.some((n) => n.text.toLowerCase().includes(q))
     );
-  }, [initialCards, search]);
-
-  // UI forms
-  const [newCardTitle, setNewCardTitle] = useState("");
-  const [newNoteText, setNewNoteText] = useState("");
-  const [newTagText, setNewTagText] = useState("");
+  }, [cards, search]);
 
   const selected = useMemo(
-    () => initialCards.find(c => c.id === selectedId) ?? null,
-    [initialCards, selectedId]
+    () => cards.find((c) => c.id === selectedId) ?? null,
+    [cards, selectedId]
   );
 
   const completion = (card: Card) => {
     if (!card.notes.length) return 0;
-    const done = card.notes.filter(n => n.done).length;
+    const done = card.notes.filter((n) => n.done).length;
     return Math.round((done / card.notes.length) * 100);
   };
+
+  /* ======= TÍTULO: local + commit solo en blur/Enter ======= */
+  const [localTitle, setLocalTitle] = useState<string>(selected?.title ?? "");
+  useEffect(() => {
+    setLocalTitle(selected?.title ?? "");
+  }, [selected?.id]);
+
+  const saveTitle = useCallback((id: string, title: string) => {
+    // 1) UI inmediata
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+    // 2) Server en background
+    startTransition(() => updateCard(id, { title }));
+  }, []);
+
+  /* ======= NOTAS: handlers optimistas ======= */
+
+  // Toggle instantáneo con rollback si falla
+  const onToggleOptimistic = useCallback(
+    (cardId: string, noteId: string, currentDone: boolean) => {
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id !== cardId
+            ? c
+            : { ...c, notes: c.notes.map((n) => (n.id === noteId ? { ...n, done: !currentDone } : n)) }
+        )
+      );
+      startTransition(async () => {
+        try {
+          await toggleNote(noteId);
+        } catch {
+          // rollback
+          setCards((prev) =>
+            prev.map((c) =>
+              c.id !== cardId
+                ? c
+                : { ...c, notes: c.notes.map((n) => (n.id === noteId ? { ...n, done: currentDone } : n)) }
+            )
+          );
+        }
+      });
+    },
+    []
+  );
+
+  // Editar texto en blur (UI inmediata + server)
+  const onEditOnBlurOptimistic = useCallback(
+    (cardId: string, noteId: string, newText: string) => {
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id !== cardId ? c : { ...c, notes: c.notes.map((n) => (n.id === noteId ? { ...n, text: newText } : n)) }
+        )
+      );
+      startTransition(() => editNote(noteId, newText));
+    },
+    []
+  );
+
+  // Quitar nota (UI inmediata + server)
+  const onRemoveNoteOptimistic = useCallback((cardId: string, noteId: string) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id !== cardId ? c : { ...c, notes: c.notes.filter((n) => n.id !== noteId) }))
+    );
+    startTransition(() => removeNote(noteId));
+  }, []);
+
+  // Tags
+  const onAddTagOptimistic = useCallback((cardId: string, tag: string) => {
+    const t = tag.trim();
+    if (!t) return;
+    setCards((prev) => prev.map((c) => (c.id !== cardId ? c : { ...c, tags: [...c.tags, t] })));
+    startTransition(() => addTag(cardId, t));
+  }, []);
+
+  const onRemoveTagOptimistic = useCallback((cardId: string, tag: string) => {
+    setCards((prev) => prev.map((c) => (c.id !== cardId ? c : { ...c, tags: c.tags.filter((t) => t !== tag) })));
+    startTransition(() => removeTag(cardId, tag));
+  }, []);
+
+  // Crear / eliminar tarjeta
+  const onCreateCard = useCallback((title: string) => {
+    if (!title.trim()) return;
+    startTransition(async () => {
+      await createCard(title.trim());
+      // Si tu action retorna la Card, aquí puedes setCards(prev => [cardNueva, ...prev])
+    });
+  }, []);
+
+  const onDeleteCard = useCallback(
+    (cardId: string) => {
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+      if (selectedId === cardId) {
+        const next = cards.find((c) => c.id !== cardId)?.id ?? null;
+        setSelectedId(next);
+      }
+      startTransition(() => deleteCard(cardId));
+    },
+    [cards, selectedId]
+  );
+
+  // Crear nota
+  const onAddNote = useCallback((cardId: string, text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    startTransition(async () => {
+      await addNote(cardId, t);
+      // Si la action retorna la Note {id,...}, aquí la agregas a state para UI inmediata.
+    });
+  }, []);
+
+  // Formularios
+  const [newCardTitle, setNewCardTitle] = useState("");
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newTagText, setNewTagText] = useState("");
 
   return (
     <div className="min-h-screen relative bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
@@ -70,7 +240,6 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2 sm:flex-row sm:items-center">
           <div className="text-lg sm:text-xl font-semibold">🗂️ Checklists – Clarisse</div>
 
-          {/* Controles: se acomodan en filas y hacen wrap en mobile */}
           <div className="sm:ml-auto flex flex-wrap items-center gap-2">
             <input
               value={search}
@@ -86,7 +255,11 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
               className="px-3 py-2 rounded-xl border w-[min(260px,100%)] sm:w-56 focus:outline-none focus:ring bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400"
             />
             <button
-              onClick={() => startTransition(async () => { if (newCardTitle.trim()) { await createCard(newCardTitle.trim()); setNewCardTitle(""); } })}
+              onClick={() => {
+                if (!newCardTitle.trim()) return;
+                onCreateCard(newCardTitle);
+                setNewCardTitle("");
+              }}
               className="px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 disabled:opacity-60"
               disabled={isPending || !newCardTitle.trim()}
             >
@@ -100,6 +273,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
               Salir
             </button>
 
+            {/* MODO OSCURO ACTUAL */}
             <ModeToggle />
           </div>
         </div>
@@ -115,47 +289,68 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
             </div>
           )}
 
-          {filtered.map((card) => (
-            <button
-              key={card.id}
-              onClick={() => setSelectedId(card.id)}
-              className={`w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${
-                selectedId === card.id ? "ring-2 ring-black/60 dark:ring-white/60" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-semibold leading-tight break-words">{card.title}</div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); if (confirm("¿Eliminar proyecto?")) deleteCard(card.id); }}
-                  className="text-xs text-red-500 hover:underline shrink-0"
-                >
-                  Eliminar
-                </button>
-              </div>
+          {filtered.map((card) => {
+            const isSelected = selectedId === card.id;
 
-              <div className="mt-2 flex flex-wrap gap-1">
-                {card.tags.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-1">
-                    <Chip label={t} />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startTransition(() => removeTag(card.id, t)); }}
-                      className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      title="Quitar tag"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
+            // handler accesible para Enter/Espacio
+            const onKeyActivate = (e: React.KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelectedId(card.id);
+              }
+            };
 
-              <div className="mt-3">
-                <ProgressBar value={completion(card)} />
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {card.notes.filter(n => n.done).length}/{card.notes.length} completadas
+            return (
+              <div
+                key={card.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedId(card.id)}
+                onKeyDown={onKeyActivate}
+                className={`w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${
+                  isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-semibold leading-tight break-words">{card.title}</div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("¿Eliminar proyecto?")) onDeleteCard(card.id);
+                    }}
+                    className="text-xs text-red-500 hover:underline shrink-0"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {card.tags.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1">
+                      <Chip label={t} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveTagOptimistic(card.id, t);
+                        }}
+                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Quitar tag"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-3">
+                  <ProgressBar value={completion(card)} />
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {card.notes.filter((n) => n.done).length}/{card.notes.length} completadas
+                  </div>
                 </div>
               </div>
-            </button>
-          ))}
+            );
+          })}
         </section>
 
         {/* DETALLE */}
@@ -168,8 +363,15 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
             <div className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <input
-                  value={selected.title}
-                  onChange={(e) => startTransition(() => updateCard(selected.id, { title: e.target.value }))}
+                  value={localTitle}
+                  onChange={(e) => setLocalTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveTitle(selected.id, localTitle.trim());
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  onBlur={() => saveTitle(selected.id, localTitle.trim())}
                   className="text-lg sm:text-xl font-semibold w-full border-b focus:outline-none bg-transparent border-gray-300 dark:border-gray-700"
                 />
               </div>
@@ -182,7 +384,8 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                   className="px-3 py-2 rounded-xl border w-full sm:w-56 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newTagText.trim()) {
-                      startTransition(async () => { await addTag(selected.id, newTagText.trim()); setNewTagText(""); });
+                      onAddTagOptimistic(selected.id, newTagText);
+                      setNewTagText("");
                     }
                   }}
                 />
@@ -195,29 +398,14 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Checklist</div>
                 <ul className="space-y-2">
                   {selected.notes.map((n) => (
-                    <li key={n.id} className="flex flex-col sm:flex-row sm:items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={n.done}
-                          onChange={() => startTransition(() => toggleNote(n.id))}
-                          className="mt-0.5 size-4"
-                        />
-                        <input
-                          value={n.text}
-                          onChange={(e) => startTransition(() => editNote(n.id, e.target.value))}
-                          className={`flex-1 px-2 py-1 rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 ${
-                            n.done ? "line-through text-gray-400 dark:text-gray-500" : ""
-                          } w-full`}
-                        />
-                      </div>
-                      <button
-                        onClick={() => startTransition(() => removeNote(n.id))}
-                        className="text-xs text-red-500 hover:underline self-start"
-                      >
-                        Quitar
-                      </button>
-                    </li>
+                    <NoteRow
+                      key={n.id}
+                      note={n}
+                      cardId={selected.id}
+                      onToggleOptimistic={onToggleOptimistic}
+                      onRemoveOptimistic={onRemoveNoteOptimistic}
+                      onEditOnBlurOptimistic={onEditOnBlurOptimistic}
+                    />
                   ))}
                 </ul>
 
@@ -229,14 +417,16 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                     className="px-3 py-2 rounded-xl border w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newNoteText.trim()) {
-                        startTransition(async () => { await addNote(selected.id, newNoteText.trim()); setNewNoteText(""); });
+                        onAddNote(selected.id, newNoteText);
+                        setNewNoteText("");
                       }
                     }}
                   />
                   <button
                     onClick={() => {
                       if (newNoteText.trim()) {
-                        startTransition(async () => { await addNote(selected.id, newNoteText.trim()); setNewNoteText(""); });
+                        onAddNote(selected.id, newNoteText);
+                        setNewNoteText("");
                       }
                     }}
                     className="px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 disabled:opacity-60"
