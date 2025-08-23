@@ -21,6 +21,7 @@ import {
 } from "@/app/actions";
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
+import { useRouter } from "next/navigation";
 
 type Note = { id: string; text: string; done: boolean };
 type Card = { id: string; title: string; tags: string[]; createdAt: string | Date; notes: Note[] };
@@ -42,6 +43,21 @@ function Chip({ label }: { label: string }) {
       {label}
     </span>
   );
+}
+
+/* Fecha estable para SSR/CSR (evita hydration mismatch) */
+function formatUTC(value: string | Date) {
+  const dt = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat("es-CL", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  }).format(dt);
 }
 
 /* Fila de nota optimizada */
@@ -90,10 +106,16 @@ const NoteRow = React.memo(function NoteRow({
 });
 
 export default function ChecklistBoard({ initialCards }: { initialCards: Card[] }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   /* ========= ESTADO LOCAL PARA UI OPTIMISTA ========= */
   const [cards, setCards] = useState<Card[]>(initialCards);
+
+  // 🔄 Sincroniza cuando initialCards cambie tras un router.refresh()
+  useEffect(() => {
+    setCards(initialCards);
+  }, [initialCards]);
 
   // Selección y búsqueda
   const [selectedId, setSelectedId] = useState<string | null>(initialCards[0]?.id ?? null);
@@ -198,13 +220,16 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   }, []);
 
   // Crear / eliminar tarjeta
-  const onCreateCard = useCallback((title: string) => {
-    if (!title.trim()) return;
-    startTransition(async () => {
-      await createCard(title.trim());
-      // Si tu action retorna la Card, aquí puedes setCards(prev => [cardNueva, ...prev])
-    });
-  }, []);
+const onCreateCard = useCallback(async (title: string) => {
+  const t = title.trim();
+  if (!t) return;
+
+  startTransition(async () => {
+    const created = await createCard(t); // ← ahora retorna {id,title,tags,createdAt,notes:[]}
+    setCards(prev => [created, ...prev]);
+    setSelectedId(created.id);
+  });
+}, []);
 
   const onDeleteCard = useCallback(
     (cardId: string) => {
@@ -219,14 +244,19 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   );
 
   // Crear nota
-  const onAddNote = useCallback((cardId: string, text: string) => {
-    const t = text.trim();
-    if (!t) return;
-    startTransition(async () => {
-      await addNote(cardId, t);
-      // Si la action retorna la Note {id,...}, aquí la agregas a state para UI inmediata.
-    });
-  }, []);
+const onAddNote = useCallback(async (cardId: string, text: string) => {
+  const t = text.trim();
+  if (!t) return;
+
+  startTransition(async () => {
+    const created = await addNote(cardId, t); // ← retorna {id, cardId, text, done}
+    setCards(prev =>
+      prev.map(c =>
+        c.id !== cardId ? c : { ...c, notes: [...c.notes, { id: created.id, text: created.text, done: created.done }] }
+      )
+    );
+  });
+}, []);
 
   // Formularios
   const [newCardTitle, setNewCardTitle] = useState("");
@@ -292,7 +322,6 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
           {filtered.map((card) => {
             const isSelected = selectedId === card.id;
 
-            // handler accesible para Enter/Espacio
             const onKeyActivate = (e: React.KeyboardEvent<HTMLDivElement>) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -438,14 +467,14 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
               </div>
 
               <div className="mt-6 text-xs text-gray-400">
-                Creado: {new Date(selected.createdAt).toLocaleString()}
+                Creado (UTC): {formatUTC(selected.createdAt)}
               </div>
             </div>
           )}
         </section>
       </main>
 
-      <footer className="max-w-7xl mx-auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
+      <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
         Hecho con 🖤 por Clarisse para su amo.
       </footer>
     </div>
