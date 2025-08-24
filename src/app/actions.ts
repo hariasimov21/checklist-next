@@ -17,24 +17,29 @@ export async function createCard(title: string) {
   const userId = assertAuth(session);
 
   const card = await prisma.card.create({
-    data: { userId, title: title?.trim() || "Nuevo proyecto", tags: [] },
-    select: { id: true, title: true, tags: true, createdAt: true },
+    data: { userId, title: title?.trim() || "Nuevo proyecto", tags: [], summary: "" }, // 👈
+    select: { id: true, title: true, tags: true, summary: true, createdAt: true },
   });
 
   // importante: la UI la maneja localmente, así que no revalides aquí
   return { ...card, notes: [] as { id: string; text: string; done: boolean }[] };
 }
 
-export async function updateCard(cardId: string, patch: { title?: string; tags?: string[] }) {
+export async function updateCard(
+  cardId: string,
+  patch: { title?: string; tags?: string[]; summary?: string } // 👈
+) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
-
   await prisma.card.update({
     where: { id: cardId, userId },
-    data: patch,
+    data: {
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+      ...(patch.summary !== undefined ? { summary: patch.summary } : {}), // 👈
+    },
   });
-
-  // ❌ NO revalidatePath aquí (evita SELECTs por cada tecla/cambio)
+  revalidatePath("/");
 }
 
 export async function deleteCard(cardId: string) {

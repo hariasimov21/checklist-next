@@ -24,7 +24,7 @@ import { ModeToggle } from "@/components/ui/toogle";
 import { useRouter } from "next/navigation";
 
 type Note = { id: string; text: string; done: boolean };
-type Card = { id: string; title: string; tags: string[]; createdAt: string | Date; notes: Note[] };
+type Card = { id: string; title: string; summary?: string; tags: string[]; createdAt: string | Date; notes: Note[] };
 
 /* --------- UI --------- */
 function ProgressBar({ value }: { value: number }) {
@@ -90,9 +90,8 @@ const NoteRow = React.memo(function NoteRow({
           defaultValue={note.text}
           ref={inputRef}
           onBlur={(e) => onEditOnBlurOptimistic(cardId, note.id, e.target.value.trim())}
-          className={`flex-1 px-2 py-1 rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 ${
-            note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
-          } w-full`}
+          className={`flex-1 px-2 py-1 rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
+            } w-full`}
         />
       </div>
       <button
@@ -136,11 +135,25 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
     [cards, selectedId]
   );
 
+  const skipNextBlurSave = useRef(false);
+
   const completion = (card: Card) => {
     if (!card.notes.length) return 0;
     const done = card.notes.filter((n) => n.done).length;
     return Math.round((done / card.notes.length) * 100);
   };
+
+  const [localSummary, setLocalSummary] = useState<string>(selected?.summary ?? "");
+  useEffect(() => {
+    setLocalSummary(selected?.summary ?? "");
+  }, [selected?.id]);
+
+  const saveSummary = useCallback((id: string, summary: string) => {
+    // 1) UI inmediata
+    setCards(prev => prev.map(c => c.id === id ? { ...c, summary } : c));
+    // 2) Server en background
+    startTransition(() => updateCard(id, { summary }));
+  }, []);
 
   /* ======= TÍTULO: local + commit solo en blur/Enter ======= */
   const [localTitle, setLocalTitle] = useState<string>(selected?.title ?? "");
@@ -220,16 +233,16 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   }, []);
 
   // Crear / eliminar tarjeta
-const onCreateCard = useCallback(async (title: string) => {
-  const t = title.trim();
-  if (!t) return;
+  const onCreateCard = useCallback(async (title: string) => {
+    const t = title.trim();
+    if (!t) return;
 
-  startTransition(async () => {
-    const created = await createCard(t); // ← ahora retorna {id,title,tags,createdAt,notes:[]}
-    setCards(prev => [created, ...prev]);
-    setSelectedId(created.id);
-  });
-}, []);
+    startTransition(async () => {
+      const created = await createCard(t); // ← ahora retorna {id,title,tags,createdAt,notes:[]}
+      setCards(prev => [created, ...prev]);
+      setSelectedId(created.id);
+    });
+  }, []);
 
   const onDeleteCard = useCallback(
     (cardId: string) => {
@@ -244,19 +257,19 @@ const onCreateCard = useCallback(async (title: string) => {
   );
 
   // Crear nota
-const onAddNote = useCallback(async (cardId: string, text: string) => {
-  const t = text.trim();
-  if (!t) return;
+  const onAddNote = useCallback(async (cardId: string, text: string) => {
+    const t = text.trim();
+    if (!t) return;
 
-  startTransition(async () => {
-    const created = await addNote(cardId, t); // ← retorna {id, cardId, text, done}
-    setCards(prev =>
-      prev.map(c =>
-        c.id !== cardId ? c : { ...c, notes: [...c.notes, { id: created.id, text: created.text, done: created.done }] }
-      )
-    );
-  });
-}, []);
+    startTransition(async () => {
+      const created = await addNote(cardId, t); // ← retorna {id, cardId, text, done}
+      setCards(prev =>
+        prev.map(c =>
+          c.id !== cardId ? c : { ...c, notes: [...c.notes, { id: created.id, text: created.text, done: created.done }] }
+        )
+      );
+    });
+  }, []);
 
   // Formularios
   const [newCardTitle, setNewCardTitle] = useState("");
@@ -336,9 +349,8 @@ const onAddNote = useCallback(async (cardId: string, text: string) => {
                 tabIndex={0}
                 onClick={() => setSelectedId(card.id)}
                 onKeyDown={onKeyActivate}
-                className={`w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${
-                  isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
-                }`}
+                className={`w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+                  }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-semibold leading-tight break-words">{card.title}</div>
@@ -370,6 +382,12 @@ const onAddNote = useCallback(async (cardId: string, text: string) => {
                     </span>
                   ))}
                 </div>
+
+                {card.summary && (
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+                    {card.summary}
+                  </p>
+                )}
 
                 <div className="mt-3">
                   <ProgressBar value={completion(card)} />
@@ -423,8 +441,43 @@ const onAddNote = useCallback(async (cardId: string, text: string) => {
                 </div>
               </div>
 
+              {/* RESUMEN */}
+              <div className="mt-3">
+                <label className="block text-lg text-gray-500 dark:text-gray-400 mb-1">
+                  Resumen de la tarea
+                </label>
+
+                <textarea
+                  value={localSummary}
+                  onChange={(e) => setLocalSummary(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      skipNextBlurSave.current = true;
+                      saveSummary(selected.id, localSummary.trim());
+                      (e.target as HTMLTextAreaElement).blur();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (skipNextBlurSave.current) {
+                      skipNextBlurSave.current = false;
+                      return; // 👈 no guardes otra vez
+                    }
+                    const serverValue = selected?.summary ?? "";
+                    const next = localSummary.trim();
+                    if (next !== serverValue) saveSummary(selected!.id, next); // 👈 guarda solo si cambió
+                  }}
+                  rows={3}
+                  placeholder="Describe brevemente el objetivo, alcance y criterio de éxito…"
+                  className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Tip: presiona <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd> para guardar.
+                </p>
+              </div>
+
+
               <div className="mt-5">
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Checklist</div>
+                <div className="text-lg text-gray-500 dark:text-gray-400 mb-2">Checklist</div>
                 <ul className="space-y-2">
                   {selected.notes.map((n) => (
                     <NoteRow
