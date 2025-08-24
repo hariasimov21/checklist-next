@@ -22,6 +22,8 @@ import {
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+
 
 type Note = { id: string; text: string; done: boolean };
 type Card = { id: string; title: string; summary?: string; tags: string[]; createdAt: string | Date; notes: Note[] };
@@ -104,6 +106,57 @@ const NoteRow = React.memo(function NoteRow({
   );
 });
 
+function Stamp({ size = 72, className = "" }: { size?: number; className?: string }) {
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    // Pinta el estado inicial (grande + difuminado) y en el próximo frame activa la transición
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  return (
+    <div
+      aria-label="Tarjeta lista"
+      className={`pointer-events-none ${className} ${ready ? "stamp-enter-active" : "stamp-enter"}`}
+    >
+      {/* Light mode: patita negra */}
+      <Image
+        src="/paw-dark.png"
+        alt="Sello completado"
+        width={size}
+        height={size}
+        priority
+        className="block dark:hidden"
+      />
+      {/* Dark mode: patita blanca */}
+      <Image
+        src="/paw-light.png"
+        alt="Sello completado"
+        width={size}
+        height={size}
+        priority
+        className="hidden dark:block"
+      />
+
+      <style jsx>{`
+        .stamp-enter {
+          opacity: 0;
+          transform: scale(1.6) rotate(-8deg);
+          filter: blur(8px) drop-shadow(0 0 6px rgba(0, 0, 0, 0.35));
+        }
+        .stamp-enter-active {
+          opacity: 0.95;
+          transform: scale(1) rotate(-8deg);
+          filter: blur(0) drop-shadow(0 0 6px rgba(0, 0, 0, 0.35));
+          transition: transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
 export default function ChecklistBoard({ initialCards }: { initialCards: Card[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -119,6 +172,13 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   // Selección y búsqueda
   const [selectedId, setSelectedId] = useState<string | null>(initialCards[0]?.id ?? null);
   const [search, setSearch] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const completedOnceRef = useRef<Set<string>>(new Set());
+
+  const isCardComplete = useCallback((c: Card) => {
+    return c.notes.length > 0 && c.notes.every(n => n.done);
+  }, []);
+
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -197,6 +257,31 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
     },
     []
   );
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    // detectar “nuevas completadas”
+    const nowCompleted = new Set(cards.filter(isCardComplete).map(c => c.id));
+
+    // reproduce sonido para ids que NO estaban marcadas antes
+    for (const id of nowCompleted) {
+      if (!completedOnceRef.current.has(id)) {
+        // marcarla y reproducir
+        completedOnceRef.current.add(id);
+        // reproducir sin bloquear la UI (try/catch por autoplay policies)
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => { });
+      }
+    }
+
+    // si alguna dejó de estar completa, elimínala del set (para poder volver a sonar si se completa otra vez)
+    for (const id of Array.from(completedOnceRef.current)) {
+      if (!nowCompleted.has(id)) {
+        completedOnceRef.current.delete(id);
+      }
+    }
+  }, [cards, isCardComplete]);
+
 
   // Editar texto en blur (UI inmediata + server)
   const onEditOnBlurOptimistic = useCallback(
@@ -281,7 +366,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       {/* HEADER */}
       <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2 sm:flex-row sm:items-center">
-          <div className="text-lg sm:text-xl font-semibold">🗂️ BLock de Tareas - CLarisse</div>
+          <div className="text-lg sm:text-xl font-semibold">🗂️ Block de Tareas - Clarisse</div>
 
           <div className="sm:ml-auto flex flex-wrap items-center gap-2">
             <input
@@ -349,9 +434,16 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                 tabIndex={0}
                 onClick={() => setSelectedId(card.id)}
                 onKeyDown={onKeyActivate}
-                className={`w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+                className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
                   }`}
               >
+                {isCardComplete(card) && (
+                  <Stamp
+                    size={72}
+                    className="absolute -top-4 -left-4 sm:-top-6 sm:-left-6"
+                  />
+                )}
+                {/* --- FIN SELLO --- */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-semibold leading-tight break-words">{card.title}</div>
                   <button
@@ -530,6 +622,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
         Hecho con 🖤 por Clarisse para su amo. Menos es más.
       </footer>
+      <audio ref={audioRef} src="/sounds/stamp.wav" preload="auto" />
     </div>
   );
 }
