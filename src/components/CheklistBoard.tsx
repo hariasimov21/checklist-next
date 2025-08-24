@@ -281,7 +281,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       {/* HEADER */}
       <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2 sm:flex-row sm:items-center">
-          <div className="text-lg sm:text-xl font-semibold">🗂️ Checklists – Clarisse</div>
+          <div className="text-lg sm:text-xl font-semibold">🗂️ BLock de Tareas - CLarisse</div>
 
           <div className="sm:ml-auto flex flex-wrap items-center gap-2">
             <input
@@ -528,7 +528,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       </main>
 
       <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
-        Hecho con 🖤 por Clarisse para su amo.
+        Hecho con 🖤 por Clarisse para su amo. Menos es más.
       </footer>
     </div>
   );
