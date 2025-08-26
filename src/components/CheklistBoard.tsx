@@ -63,6 +63,7 @@ function formatUTC(value: string | Date) {
 }
 
 /* Fila de nota optimizada */
+/* --------- Fila de nota con ver/editar + autosize --------- */
 const NoteRow = React.memo(function NoteRow({
   note,
   cardId,
@@ -76,26 +77,76 @@ const NoteRow = React.memo(function NoteRow({
   onRemoveOptimistic: (cardId: string, noteId: string) => void;
   onEditOnBlurOptimistic: (cardId: string, noteId: string, newText: string) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const taRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // autosize simple para <textarea>
+  const autoGrow = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = el.scrollHeight + "px";
+  };
+
+  React.useEffect(() => {
+    if (isEditing) {
+      taRef.current?.focus();
+      taRef.current?.setSelectionRange(note.text.length, note.text.length);
+      autoGrow(taRef.current);
+    }
+  }, [isEditing, note.text]);
 
   return (
-    <li className="flex flex-col sm:flex-row sm:items-start gap-2">
-      <div className="flex items-center gap-2">
+    <li className="flex flex-col sm:flex-row sm:items-start gap-2 w-full">
+      <div className="flex items-start gap-2 w-full min-w-0">
         <input
           type="checkbox"
           checked={note.done}
           onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
-          className="mt-0.5 size-4"
+          className="mt-1 size-4 shrink-0"
         />
-        {/* Uncontrolled: escribe fluido y guarda en blur */}
-        <input
-          defaultValue={note.text}
-          ref={inputRef}
-          onBlur={(e) => onEditOnBlurOptimistic(cardId, note.id, e.target.value.trim())}
-          className={`flex-1 px-2 py-1 rounded border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
-            } w-full`}
-        />
+
+        {/* --- Ver / Editar --- */}
+        {isEditing ? (
+          <textarea
+            ref={taRef}
+            defaultValue={note.text}
+            onInput={(e) => autoGrow(e.currentTarget)}
+            onBlur={(e) => {
+              const v = e.currentTarget.value.trim();
+              onEditOnBlurOptimistic(cardId, note.id, v);
+              setIsEditing(false);
+            }}
+            onKeyDown={(e) => {
+              // Guardar con Ctrl/⌘+Enter
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                (e.target as HTMLTextAreaElement).blur();
+              }
+              // Salir sin guardar adicional con Escape
+              if (e.key === "Escape") {
+                setIsEditing(false);
+              }
+            }}
+            rows={1}
+            className={`flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900
+                        border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden`}
+            style={{ lineHeight: "1.5" }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900
+                        ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""}`}
+            title="Haz clic para editar"
+          >
+            {/* Ocupa todo el ancho y quiebra en múltiples líneas */}
+            <span className="block break-words whitespace-pre-wrap">
+              {note.text}
+            </span>
+          </button>
+        )}
       </div>
+
       <button
         onClick={() => onRemoveOptimistic(cardId, note.id)}
         className="text-xs text-red-500 hover:underline self-start"
@@ -105,6 +156,7 @@ const NoteRow = React.memo(function NoteRow({
     </li>
   );
 });
+
 
 function Stamp({ size = 72, className = "" }: { size?: number; className?: string }) {
   const [ready, setReady] = React.useState(false);
