@@ -18,11 +18,17 @@ import {
   deleteCard,
   addTag,
   removeTag,
+  reorderCards
 } from "@/app/actions";
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+
 
 
 type Note = { id: string; text: string; done: boolean };
@@ -147,19 +153,165 @@ const NoteRow = React.memo(function NoteRow({
         )}
       </div>
 
+
       <button
         onClick={() => onRemoveOptimistic(cardId, note.id)}
         className="text-xs text-red-500 hover:underline self-start"
+        title="Eliminar proyecto"
       >
-        Quitar
+        {/* Claro: ícono negro */}
+        <Image
+          src="/delete-dark.png"
+          alt="Eliminar"
+          width={24}
+          height={24}
+          className="block dark:hidden"
+        />
+        {/* Oscuro: ícono blanco */}
+        <Image
+          src="/delete-light.png"
+          alt="Eliminar"
+          width={24}
+          height={24}
+          className="hidden dark:block"
+        />
       </button>
     </li>
   );
 });
 
+function SortableCardItem({
+  card,
+  isSelected,
+  onSelect,
+  onDelete,
+  onRemoveTag,
+  completion,
+  isCardComplete,
+}: {
+  card: Card;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onRemoveTag: (tag: string) => void;
+  completion: (c: Card) => number;
+  isCardComplete: (c: Card) => boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`${isDragging ? "opacity-80 shadow-lg" : ""}`}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+          }`}
+      >
+        {isCardComplete(card) && (
+          <Stamp size={72} className="absolute -top-4 -left-4 sm:-top-6 sm:-left-6" />
+        )}
+
+        {/* cabecera: título + acciones */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="font-semibold leading-tight break-words">{card.title}</div>
+
+          <div className="flex items-center gap-1">
+            {/* 🔹 HANDLE de drag: sólo desde aquí se arrastra */}
+            <button
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+              className="px-6 py-1.5 rounded-md text-base cursor-grab active:cursor-grabbing 
+               hover:bg-gray-200 dark:hover:bg-gray-700 select-none"
+              title="Arrastrar para reordenar"
+            >
+              ≡
+            </button>
+
+            {/* 🔹 BOTÓN ELIMINAR CON ICONOS PNG */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm("¿Eliminar proyecto?")) onDelete();
+              }}
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Eliminar proyecto"
+            >
+              {/* Claro: ícono negro */}
+              <Image
+                src="/delete-dark.png"
+                alt="Eliminar"
+                width={24}
+                height={24}
+                className="block dark:hidden"
+              />
+              {/* Oscuro: ícono blanco */}
+              <Image
+                src="/delete-light.png"
+                alt="Eliminar"
+                width={24}
+                height={24}
+                className="hidden dark:block"
+              />
+            </button>
+          </div>
+
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-1">
+          {card.tags.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1">
+              <Chip label={t} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveTag(t);
+                }}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                title="Quitar tag"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+
+        {card.summary && (
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+            {card.summary}
+          </p>
+        )}
+
+        <div className="mt-3">
+          <ProgressBar value={completion(card)} />
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {card.notes.filter((n) => n.done).length}/{card.notes.length} completadas
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
 
 function Stamp({ size = 72, className = "" }: { size?: number; className?: string }) {
   const [ready, setReady] = React.useState(false);
+
+
 
   React.useEffect(() => {
     // Pinta el estado inicial (grande + difuminado) y en el próximo frame activa la transición
@@ -207,6 +359,34 @@ function Stamp({ size = 72, className = "" }: { size?: number; className?: strin
     </div>
   );
 }
+
+function SortableItem({
+  id,
+  onClick,
+  className,
+  children,
+}: {
+  id: string;
+  onClick?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`${className ?? ""} cursor-grab active:cursor-grabbing select-none ${isDragging ? "opacity-80 shadow-lg" : ""}`}
+      onClick={onClick}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 
 
 export default function ChecklistBoard({ initialCards }: { initialCards: Card[] }) {
@@ -408,6 +588,39 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
     });
   }, []);
 
+  const onDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // 1) ids visibles en el orden actual
+    const visibleIds = filtered.map(c => c.id);
+    const from = visibleIds.indexOf(String(active.id));
+    const to = visibleIds.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+
+    // 2) nuevo orden SOLO de los visibles
+    const newVisibleIds = arrayMove(visibleIds, from, to);
+
+    // 3) construir el arreglo completo reordenado usando el estado ACTUAL (cards)
+    const byId = new Map(cards.map(c => [c.id, c]));
+    const reordered = [
+      ...newVisibleIds.map(id => byId.get(id)!),
+      ...cards.filter(c => !newVisibleIds.includes(c.id)),
+    ];
+
+    // 4) UI optimista (solo setState, nada más)
+    setCards(reordered);
+
+    // 5) Persistir en segundo plano (SIN startTransition y SIN router.refresh)
+    void reorderCards(reordered.map(c => c.id));
+  }, [cards, filtered]);
+
+
+
+
+
+
+
   // Formularios
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newNoteText, setNewNoteText] = useState("");
@@ -463,86 +676,31 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* LISTA DE TARJETAS */}
         <section className="space-y-3 lg:col-span-1">
-          {filtered.length === 0 && (
-            <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              No hay proyectos que coincidan.
-            </div>
-          )}
-
-          {filtered.map((card) => {
-            const isSelected = selectedId === card.id;
-
-            const onKeyActivate = (e: React.KeyboardEvent<HTMLDivElement>) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedId(card.id);
-              }
-            };
-
-            return (
-              <div
-                key={card.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedId(card.id)}
-                onKeyDown={onKeyActivate}
-                className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
-                  }`}
-              >
-                {isCardComplete(card) && (
-                  <Stamp
-                    size={72}
-                    className="absolute -top-4 -left-4 sm:-top-6 sm:-left-6"
-                  />
-                )}
-                {/* --- FIN SELLO --- */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-semibold leading-tight break-words">{card.title}</div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("¿Eliminar proyecto?")) onDeleteCard(card.id);
-                    }}
-                    className="text-xs text-red-500 hover:underline shrink-0"
-                  >
-                    Eliminar
-                  </button>
+          <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={filtered.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              {filtered.length === 0 && (
+                <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  No hay proyectos que coincidan.
                 </div>
+              )}
 
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {card.tags.map((t) => (
-                    <span key={t} className="inline-flex items-center gap-1">
-                      <Chip label={t} />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveTagOptimistic(card.id, t);
-                        }}
-                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="Quitar tag"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {card.summary && (
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
-                    {card.summary}
-                  </p>
-                )}
-
-                <div className="mt-3">
-                  <ProgressBar value={completion(card)} />
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {card.notes.filter((n) => n.done).length}/{card.notes.length} completadas
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              {filtered.map((card) => (
+                <SortableCardItem
+                  key={card.id}
+                  card={card}
+                  isSelected={selectedId === card.id}
+                  onSelect={() => setSelectedId(card.id)}
+                  onDelete={() => onDeleteCard(card.id)}
+                  onRemoveTag={(t) => onRemoveTagOptimistic(card.id, t)}
+                  completion={completion}
+                  isCardComplete={isCardComplete}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </section>
+
+
 
         {/* DETALLE */}
         <section className="lg:col-span-2">

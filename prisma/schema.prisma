@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pooler 6543 (app)
+  directUrl = env("DIRECT_URL")     // directo 5432 (migraciones)
 }
 
 // datasource & generator como los crea prisma init
@@ -34,11 +35,16 @@ model Card {
   userId    String
   title     String
   summary   String   @default("")
-  tags      String[] // Postgres text[]
+  tags      String[]
   createdAt DateTime @default(now())
   notes     Note[]
 
+  // 👇 NUEVO
+  position  Int      @default(0)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position])
 }
 
 model Note {

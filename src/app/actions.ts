@@ -16,14 +16,42 @@ export async function createCard(title: string) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
 
+  const maxPos = await prisma.card.aggregate({
+    where: { userId },
+    _max: { position: true }
+  });
+  const position = (maxPos._max.position ?? 0) + 1;
+
   const card = await prisma.card.create({
-    data: { userId, title: title?.trim() || "Nuevo proyecto", tags: [], summary: "" }, // 👈
-    select: { id: true, title: true, tags: true, summary: true, createdAt: true },
+    data: { userId, title: title?.trim() || "Nuevo proyecto", tags: [], summary: "", position },
+    select: { id: true, title: true, tags: true, summary: true, createdAt: true, position: true, notes: true }
   });
 
-  // importante: la UI la maneja localmente, así que no revalides aquí
-  return { ...card, notes: [] as { id: string; text: string; done: boolean }[] };
+  revalidatePath("/");
+  return card;
 }
+
+export async function reorderCards(orderedIds: string[]) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const own = await prisma.card.findMany({ where: { userId }, select: { id: true } });
+  const allow = new Set(own.map(c => c.id));
+  const ids = orderedIds.filter(id => allow.has(id));
+
+  await prisma.$transaction(
+    ids.map((id, idx) =>
+      prisma.card.update({
+        where: { id, userId },
+        data: { position: idx * 10 }
+      })
+    )
+  );
+
+  return { ok: true };
+}
+
+
 
 export async function updateCard(
   cardId: string,

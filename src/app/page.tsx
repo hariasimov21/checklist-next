@@ -10,11 +10,16 @@ export default async function Page() {
 
   if (!userId) redirect("/login");
 
-  const cards = await prisma.card.findMany({
-    where: { userId },
-    include: { notes: true },
-    orderBy: { createdAt: "desc" },
-  });
+const cards = await prisma.card.findMany({
+  where: { userId },
+  orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+  select: {
+    id: true, title: true, summary: true, tags: true,
+    createdAt: true, position: true,
+    notes: { select: { id: true, text: true, done: true } }
+  }
+});
+
 
   return <ChecklistBoard initialCards={cards} />;
 }
