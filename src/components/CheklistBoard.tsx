@@ -101,83 +101,60 @@ const NoteRow = React.memo(function NoteRow({
     }
   }, [isEditing, note.text]);
 
-  return (
-    <li className="flex flex-col sm:flex-row sm:items-start gap-2 w-full">
-      <div className="flex items-start gap-2 w-full min-w-0">
-        <input
-          type="checkbox"
-          checked={note.done}
-          onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
-          className="mt-1 size-4 shrink-0"
-        />
+return (
+  <li className="flex items-center gap-2 w-full"> {/* <- centrado vertical */}
+    {/* Izquierda: checkbox + texto */}
+    <div className="flex items-center gap-2 flex-1 min-w-0">
+      <input
+        type="checkbox"
+        checked={note.done}
+        onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
+        className="size-4 shrink-0"
+      />
 
-        {/* --- Ver / Editar --- */}
-        {isEditing ? (
-          <textarea
-            ref={taRef}
-            defaultValue={note.text}
-            onInput={(e) => autoGrow(e.currentTarget)}
-            onBlur={(e) => {
-              const v = e.currentTarget.value.trim();
-              onEditOnBlurOptimistic(cardId, note.id, v);
-              setIsEditing(false);
-            }}
-            onKeyDown={(e) => {
-              // Guardar con Ctrl/⌘+Enter
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                (e.target as HTMLTextAreaElement).blur();
-              }
-              // Salir sin guardar adicional con Escape
-              if (e.key === "Escape") {
-                setIsEditing(false);
-              }
-            }}
-            rows={1}
-            className={`flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900
-                        border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden`}
-            style={{ lineHeight: "1.5" }}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900
-                        ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""}`}
-            title="Haz clic para editar"
-          >
-            {/* Ocupa todo el ancho y quiebra en múltiples líneas */}
-            <span className="block break-words whitespace-pre-wrap">
-              {note.text}
-            </span>
-          </button>
-        )}
-      </div>
-
-
-      <button
-        onClick={() => onRemoveOptimistic(cardId, note.id)}
-        className="text-xs text-red-500 hover:underline self-start"
-        title="Eliminar proyecto"
-      >
-        {/* Claro: ícono negro */}
-        <Image
-          src="/delete-dark.png"
-          alt="Eliminar"
-          width={24}
-          height={24}
-          className="block dark:hidden"
+      {isEditing ? (
+        <textarea
+          ref={taRef}
+          defaultValue={note.text}
+          onInput={(e) => autoGrow(e.currentTarget)}
+          onBlur={(e) => {
+            const v = e.currentTarget.value.trim();
+            onEditOnBlurOptimistic(cardId, note.id, v);
+            setIsEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") (e.target as HTMLTextAreaElement).blur();
+            if (e.key === "Escape") setIsEditing(false);
+          }}
+          rows={1}
+          className="flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900
+                     border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden"
+          style={{ lineHeight: "1.5" }}
         />
-        {/* Oscuro: ícono blanco */}
-        <Image
-          src="/delete-light.png"
-          alt="Eliminar"
-          width={24}
-          height={24}
-          className="hidden dark:block"
-        />
-      </button>
-    </li>
-  );
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900
+                      ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""}`}
+          title="Haz clic para editar"
+        >
+          <span className="block break-words whitespace-pre-wrap">{note.text}</span>
+        </button>
+      )}
+    </div>
+
+    {/* Derecha: botón eliminar */}
+    <button
+      onClick={() => onRemoveOptimistic(cardId, note.id)}
+      className="shrink-0 ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+      title="Eliminar ítem"
+    >
+      <Image src="/delete-dark.png" alt="Eliminar" width={20} height={20} className="block dark:hidden" />
+      <Image src="/delete-light.png" alt="Eliminar" width={20} height={20} className="hidden dark:block" />
+    </button>
+  </li>
+);
 });
 
 function SortableCardItem({
