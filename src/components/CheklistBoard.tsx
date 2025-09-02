@@ -101,60 +101,60 @@ const NoteRow = React.memo(function NoteRow({
     }
   }, [isEditing, note.text]);
 
-return (
-  <li className="flex items-center gap-2 w-full"> {/* <- centrado vertical */}
-    {/* Izquierda: checkbox + texto */}
-    <div className="flex items-center gap-2 flex-1 min-w-0">
-      <input
-        type="checkbox"
-        checked={note.done}
-        onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
-        className="size-4 shrink-0"
-      />
-
-      {isEditing ? (
-        <textarea
-          ref={taRef}
-          defaultValue={note.text}
-          onInput={(e) => autoGrow(e.currentTarget)}
-          onBlur={(e) => {
-            const v = e.currentTarget.value.trim();
-            onEditOnBlurOptimistic(cardId, note.id, v);
-            setIsEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") (e.target as HTMLTextAreaElement).blur();
-            if (e.key === "Escape") setIsEditing(false);
-          }}
-          rows={1}
-          className="flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900
-                     border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden"
-          style={{ lineHeight: "1.5" }}
+  return (
+    <li className="flex items-center gap-2 w-full"> {/* <- centrado vertical */}
+      {/* Izquierda: checkbox + texto */}
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <input
+          type="checkbox"
+          checked={note.done}
+          onChange={() => onToggleOptimistic(cardId, note.id, note.done)}
+          className="size-4 shrink-0"
         />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900
-                      ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""}`}
-          title="Haz clic para editar"
-        >
-          <span className="block break-words whitespace-pre-wrap">{note.text}</span>
-        </button>
-      )}
-    </div>
 
-    {/* Derecha: botón eliminar */}
-    <button
-      onClick={() => onRemoveOptimistic(cardId, note.id)}
-      className="shrink-0 ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-      title="Eliminar ítem"
-    >
-      <Image src="/delete-dark.png" alt="Eliminar" width={20} height={20} className="block dark:hidden" />
-      <Image src="/delete-light.png" alt="Eliminar" width={20} height={20} className="hidden dark:block" />
-    </button>
-  </li>
-);
+        {isEditing ? (
+          <textarea
+            ref={taRef}
+            defaultValue={note.text}
+            onInput={(e) => autoGrow(e.currentTarget)}
+            onBlur={(e) => {
+              const v = e.currentTarget.value.trim();
+              onEditOnBlurOptimistic(cardId, note.id, v);
+              setIsEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") (e.target as HTMLTextAreaElement).blur();
+              if (e.key === "Escape") setIsEditing(false);
+            }}
+            rows={1}
+            className="flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900
+                     border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden"
+            style={{ lineHeight: "1.5" }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900
+                      ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""}`}
+            title="Haz clic para editar"
+          >
+            <span className="block break-words whitespace-pre-wrap">{note.text}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Derecha: botón eliminar */}
+      <button
+        onClick={() => onRemoveOptimistic(cardId, note.id)}
+        className="shrink-0 ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+        title="Eliminar ítem"
+      >
+        <Image src="/delete-dark.png" alt="Eliminar" width={20} height={20} className="block dark:hidden" />
+        <Image src="/delete-light.png" alt="Eliminar" width={20} height={20} className="hidden dark:block" />
+      </button>
+    </li>
+  );
 });
 
 function SortableCardItem({
@@ -366,6 +366,8 @@ function SortableItem({
 
 
 
+
+
 export default function ChecklistBoard({ initialCards }: { initialCards: Card[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -383,6 +385,18 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   const [search, setSearch] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const completedOnceRef = useRef<Set<string>>(new Set());
+
+  // arriba, junto a otros useRef/useState
+const summaryRef = useRef<HTMLTextAreaElement>(null);
+
+const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = "0px";
+  el.style.height = el.scrollHeight + "px";
+};
+
+// cuando cambie la tarjeta seleccionada o el texto local
+
 
   const isCardComplete = useCallback((c: Card) => {
     return c.notes.length > 0 && c.notes.every(n => n.done);
@@ -490,6 +504,10 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
       }
     }
   }, [cards, isCardComplete]);
+
+  useEffect(() => {
+  autoGrowSummary(summaryRef.current);
+}, [selected?.id, localSummary]);
 
 
   // Editar texto en blur (UI inmediata + server)
@@ -727,8 +745,10 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                 </label>
 
                 <textarea
+                  ref={summaryRef}
                   value={localSummary}
                   onChange={(e) => setLocalSummary(e.target.value)}
+                  onInput={(e) => autoGrowSummary(e.currentTarget)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                       skipNextBlurSave.current = true;
@@ -737,17 +757,15 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                     }
                   }}
                   onBlur={() => {
-                    if (skipNextBlurSave.current) {
-                      skipNextBlurSave.current = false;
-                      return; // 👈 no guardes otra vez
-                    }
+                    if (skipNextBlurSave.current) { skipNextBlurSave.current = false; return; }
                     const serverValue = selected?.summary ?? "";
                     const next = localSummary.trim();
-                    if (next !== serverValue) saveSummary(selected!.id, next); // 👈 guarda solo si cambió
+                    if (next !== serverValue) saveSummary(selected!.id, next);
                   }}
-                  rows={3}
+                  rows={1}  // 👈 arranca en 1 y crece solo
                   placeholder="Describe brevemente el objetivo, alcance y criterio de éxito…"
-                  className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring"
+                  className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring leading-relaxed"
+                  style={{ lineHeight: "1.5", resize: "none", overflow: "hidden" }}  // 👈 evita scroll
                 />
                 <p className="mt-1 text-xs text-gray-400">
                   Tip: presiona <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd> para guardar.
