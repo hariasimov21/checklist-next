@@ -24,7 +24,7 @@ export async function createCard(title: string) {
 
   const card = await prisma.card.create({
     data: { userId, title: title?.trim() || "Nuevo proyecto", tags: [], summary: "", position },
-    select: { id: true, title: true, tags: true, summary: true, createdAt: true, position: true, notes: true }
+    select: { id: true, title: true, tags: true, summary: true, createdAt: true, position: true, notes: true, attachments: true }
   });
 
   revalidatePath("/");
