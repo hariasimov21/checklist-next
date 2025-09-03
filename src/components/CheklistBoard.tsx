@@ -31,7 +31,14 @@ import { AttachmentsBar } from "@/components/AttachmentsBar";
 
 
 
-type Attachment = { id: string; name: string; url: string; mime: string; size: number; createdAt: string | Date };
+export type Attachment = {
+  id: string;
+  name: string;
+  url: string;   // path interno en storage (p.ej. cards/<cardId>/<uuid>-file.pdf)
+  mime: string;
+  size: number;
+  createdAt?: string | Date;
+};
 type Note = { id: string; text: string; done: boolean };
 type Card = { id: string; title: string; summary?: string; tags: string[]; createdAt: string | Date; notes: Note[]; attachments: Attachment[]; position: number };
 
@@ -382,10 +389,10 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   }, [initialCards]);
 
   useEffect(() => {
-  if (audioRef.current) {
-    audioRef.current.volume = 0.1; // 30% del volumen
-  }
-}, []);
+    if (audioRef.current) {
+      audioRef.current.volume = 0.1; // 30% del volumen
+    }
+  }, []);
 
   // Selección y búsqueda
   const [selectedId, setSelectedId] = useState<string | null>(initialCards[0]?.id ?? null);
@@ -488,37 +495,37 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
     []
   );
 
-useEffect(() => {
-  if (audioRef.current) audioRef.current.volume = 0.3; // 15%
-}, []);
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = 0.3; // 15%
+  }, []);
 
-// 3) En el efecto donde llamas a play(), PAUSA, fija volumen y luego reproduce
-useEffect(() => {
-  const el = audioRef.current;
-  if (!el) return;
+  // 3) En el efecto donde llamas a play(), PAUSA, fija volumen y luego reproduce
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
 
-  const nowCompleted = new Set(cards.filter(isCardComplete).map(c => c.id));
+    const nowCompleted = new Set(cards.filter(isCardComplete).map(c => c.id));
 
-  for (const id of nowCompleted) {
-    if (!completedOnceRef.current.has(id)) {
-      completedOnceRef.current.add(id);
+    for (const id of nowCompleted) {
+      if (!completedOnceRef.current.has(id)) {
+        completedOnceRef.current.add(id);
 
-      try {
-        el.pause();                // <- evita solapes
-        el.currentTime = 0;
-        el.volume = 0.3;          // <- asegura volumen justo antes de play
-        // el.playbackRate = 1;    // (opcional) por si cambiaste rate en otro lado
-        void el.play();
-      } catch {
-        // ignore
+        try {
+          el.pause();                // <- evita solapes
+          el.currentTime = 0;
+          el.volume = 0.3;          // <- asegura volumen justo antes de play
+          // el.playbackRate = 1;    // (opcional) por si cambiaste rate en otro lado
+          void el.play();
+        } catch {
+          // ignore
+        }
       }
     }
-  }
 
-  for (const id of Array.from(completedOnceRef.current)) {
-    if (!nowCompleted.has(id)) completedOnceRef.current.delete(id);
-  }
-}, [cards, isCardComplete]);
+    for (const id of Array.from(completedOnceRef.current)) {
+      if (!nowCompleted.has(id)) completedOnceRef.current.delete(id);
+    }
+  }, [cards, isCardComplete]);
 
   useEffect(() => {
     autoGrowSummary(summaryRef.current);
@@ -791,9 +798,17 @@ useEffect(() => {
               <div className="mt-5">
                 <div className="text-lg text-gray-500 dark:text-gray-400 mb-2">Adjuntos</div>
                 <AttachmentsBar
-                  cardId={selected.id}
-                  initial={selected.attachments}
+                  key={selected?.id}                       // 🔁 remonta al cambiar de tarjeta
+                  cardId={selected!.id}
+                  initial={selected?.attachments ?? []}    // 👈 adjuntos PROPIOS de esa tarjeta
+                  onChange={(next) => {
+                    // Sincroniza el estado global de cards SOLO para esa tarjeta
+                    setCards(prev =>
+                      prev.map(c => (c.id === selected!.id ? { ...c, attachments: next } : c))
+                    );
+                  }}
                 />
+                
               </div>
 
 

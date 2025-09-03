@@ -6,34 +6,30 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }   // 👈 Promise
 ) {
-  const { id } = await params;
+  try {
+    const { id } = await params;                     // 👈 await
 
-  // 1) Busca el attachment
-  const att = await prisma.attachment.findUnique({
-    where: { id },
-    select: { url: true, name: true, mime: true, size: true },
-  });
-  if (!att) {
-    return NextResponse.json({ error: "Adjunto no encontrado" }, { status: 404 });
+    const att = await prisma.attachment.findUnique({
+      where: { id },
+      select: { url: true },
+    });
+    if (!att) {
+      return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+    }
+
+    const { data, error } = await supabaseAdmin.storage
+      .from("Cards")
+      .createSignedUrl(att.url, 60);
+    if (error || !data?.signedUrl) {
+      console.error("[signed] supabase error", error);
+      return NextResponse.json({ error: "No se pudo generar signed URL" }, { status: 500 });
+    }
+
+    return NextResponse.json({ signedUrl: data.signedUrl });
+  } catch (err) {
+    console.error("[signed] fatal", err);
+    return NextResponse.json({ error: "Error generando firma" }, { status: 500 });
   }
-
-  // 2) Genera la URL firmada (bucket "cards")
-  //    att.url DEBE ser la ruta EXACTA con la que subiste el archivo al bucket.
-  const { data, error } = await supabaseAdmin.storage
-    .from("Cards")
-    .createSignedUrl(att.url, 120);
-
-  if (error || !data?.signedUrl) {
-    console.error("signedUrl error:", error, "path:", att.url);
-    return NextResponse.json({ error: "No se pudo firmar la URL" }, { status: 500 });
-  }
-
-  // 3) Respuesta limpia
-  return NextResponse.json({
-    ok: true,
-    signedUrl: data.signedUrl,
-    meta: att,
-  });
 }
