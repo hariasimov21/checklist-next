@@ -31,12 +31,27 @@ export async function createCard(title: string) {
   return card;
 }
 
+export async function getCardsForUser(userId: string) {
+  return prisma.card.findMany({
+    where: { userId },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
+    select: {
+      id: true, title: true, tags: true, summary: true, createdAt: true, position: true,
+      attachments: {
+        select: { id: true, name: true, url: true, mime: true, size: true, createdAt: true },
+        orderBy: { createdAt: "desc" }
+      },
+      notes: { select: { id: true, text: true, done: true } } // si ya los usas
+    }
+  });
+}
+
 export async function reorderCards(orderedIds: string[]) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
 
   const own = await prisma.card.findMany({ where: { userId }, select: { id: true } });
-  const allow = new Set(own.map(c => c.id));
+  const allow = new Set(own.map((c: { id: any; }) => c.id));
   const ids = orderedIds.filter(id => allow.has(id));
 
   await prisma.$transaction(

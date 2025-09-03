@@ -27,12 +27,13 @@ import Image from "next/image";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { AttachmentsBar } from "@/components/AttachmentsBar";
 
 
 
-
+type Attachment = { id: string; name: string; url: string; mime: string; size: number; createdAt: string | Date };
 type Note = { id: string; text: string; done: boolean };
-type Card = { id: string; title: string; summary?: string; tags: string[]; createdAt: string | Date; notes: Note[] };
+type Card = { id: string; title: string; summary?: string; tags: string[]; createdAt: string | Date; notes: Note[]; attachments: Attachment[]; position: number };
 
 /* --------- UI --------- */
 function ProgressBar({ value }: { value: number }) {
@@ -380,6 +381,12 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
     setCards(initialCards);
   }, [initialCards]);
 
+  useEffect(() => {
+  if (audioRef.current) {
+    audioRef.current.volume = 0.1; // 30% del volumen
+  }
+}, []);
+
   // Selección y búsqueda
   const [selectedId, setSelectedId] = useState<string | null>(initialCards[0]?.id ?? null);
   const [search, setSearch] = useState("");
@@ -387,15 +394,15 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   const completedOnceRef = useRef<Set<string>>(new Set());
 
   // arriba, junto a otros useRef/useState
-const summaryRef = useRef<HTMLTextAreaElement>(null);
+  const summaryRef = useRef<HTMLTextAreaElement>(null);
 
-const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
-  if (!el) return;
-  el.style.height = "0px";
-  el.style.height = el.scrollHeight + "px";
-};
+  const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = el.scrollHeight + "px";
+  };
 
-// cuando cambie la tarjeta seleccionada o el texto local
+  // cuando cambie la tarjeta seleccionada o el texto local
 
 
   const isCardComplete = useCallback((c: Card) => {
@@ -481,33 +488,41 @@ const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
     []
   );
 
-  useEffect(() => {
-    if (!audioRef.current) return;
-    // detectar “nuevas completadas”
-    const nowCompleted = new Set(cards.filter(isCardComplete).map(c => c.id));
+useEffect(() => {
+  if (audioRef.current) audioRef.current.volume = 0.3; // 15%
+}, []);
 
-    // reproduce sonido para ids que NO estaban marcadas antes
-    for (const id of nowCompleted) {
-      if (!completedOnceRef.current.has(id)) {
-        // marcarla y reproducir
-        completedOnceRef.current.add(id);
-        // reproducir sin bloquear la UI (try/catch por autoplay policies)
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => { });
+// 3) En el efecto donde llamas a play(), PAUSA, fija volumen y luego reproduce
+useEffect(() => {
+  const el = audioRef.current;
+  if (!el) return;
+
+  const nowCompleted = new Set(cards.filter(isCardComplete).map(c => c.id));
+
+  for (const id of nowCompleted) {
+    if (!completedOnceRef.current.has(id)) {
+      completedOnceRef.current.add(id);
+
+      try {
+        el.pause();                // <- evita solapes
+        el.currentTime = 0;
+        el.volume = 0.3;          // <- asegura volumen justo antes de play
+        // el.playbackRate = 1;    // (opcional) por si cambiaste rate en otro lado
+        void el.play();
+      } catch {
+        // ignore
       }
     }
+  }
 
-    // si alguna dejó de estar completa, elimínala del set (para poder volver a sonar si se completa otra vez)
-    for (const id of Array.from(completedOnceRef.current)) {
-      if (!nowCompleted.has(id)) {
-        completedOnceRef.current.delete(id);
-      }
-    }
-  }, [cards, isCardComplete]);
+  for (const id of Array.from(completedOnceRef.current)) {
+    if (!nowCompleted.has(id)) completedOnceRef.current.delete(id);
+  }
+}, [cards, isCardComplete]);
 
   useEffect(() => {
-  autoGrowSummary(summaryRef.current);
-}, [selected?.id, localSummary]);
+    autoGrowSummary(summaryRef.current);
+  }, [selected?.id, localSummary]);
 
 
   // Editar texto en blur (UI inmediata + server)
@@ -768,8 +783,17 @@ const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
                   style={{ lineHeight: "1.5", resize: "none", overflow: "hidden" }}  // 👈 evita scroll
                 />
                 <p className="mt-1 text-xs text-gray-400">
-                  Tip: presiona <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd> para guardar.
+                  Tip: presiona <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd> para guardar. :O
                 </p>
+              </div>
+
+              {/* ADJUNTOS */}
+              <div className="mt-5">
+                <div className="text-lg text-gray-500 dark:text-gray-400 mb-2">Adjuntos</div>
+                <AttachmentsBar
+                  cardId={selected.id}
+                  initial={selected.attachments}
+                />
               </div>
 
 

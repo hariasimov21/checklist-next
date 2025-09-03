@@ -39,6 +39,8 @@ model Card {
   createdAt DateTime @default(now())
   notes     Note[]
 
+  attachments Attachment[]
+
   // 👇 NUEVO
   position  Int      @default(0)
 
@@ -92,3 +94,16 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Attachment {
+  id        String   @id @default(cuid())
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  mime      String
+  size      Int
+  createdAt DateTime @default(now())
+}
+
+
