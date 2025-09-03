@@ -50,8 +50,13 @@ export async function reorderCards(orderedIds: string[]) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
 
-  const own = await prisma.card.findMany({ where: { userId }, select: { id: true } });
-  const allow = new Set(own.map((c: { id: any; }) => c.id));
+const own = await prisma.card.findMany({
+  where: { userId },
+  select: { id: true },
+});
+
+const allow = new Set<string>(own.map((c: { id: string }) => c.id));
+
   const ids = orderedIds.filter(id => allow.has(id));
 
   await prisma.$transaction(
