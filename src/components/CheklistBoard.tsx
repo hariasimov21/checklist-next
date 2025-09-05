@@ -30,6 +30,74 @@ import { CSS } from "@dnd-kit/utilities";
 import { AttachmentsBar } from "@/components/AttachmentsBar";
 
 
+declare global {
+  interface Window {
+    ClipboardItem: typeof ClipboardItem;
+  }
+}
+
+
+
+
+// --- [CLIPBOARD UTILS] ---
+// Evita inyección si alguna nota tiene < > & etc.
+function escapeHtml(s: string) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/**
+ * Genera la versión HTML y texto plano para el portapapeles.
+ * - title -> 14px
+ * - summary -> 12px (si existe)
+ * - items -> lista con viñetas
+ * Puedes cambiar el bullet por "• " o incluir [x]/[ ] si quieres.
+ */
+function buildClipboardPayload(params: {
+  title: string;
+  summary?: string | null;
+  items: { text: string; done?: boolean }[];
+}) {
+  const title = (params.title ?? "").trim();
+  const summary = (params.summary ?? "").trim();
+
+  // Texto plano (fallback universal)
+  const textPlain =
+    `${title}\n` +
+    (summary ? `${summary}\n` : "") +
+    params.items.map((i) => `* ${i.text}`).join("\n");
+
+  // HTML con estilos inline simples
+  const lis = params.items
+    .map((i) => `<li>${escapeHtml(i.text)}</li>`)
+    .join("");
+
+  const textHtml = `
+    <div>
+      <div style="font-size:14px; font-weight:600; margin-bottom:4px;">
+        ${escapeHtml(title)}
+      </div>
+      ${summary
+      ? `<div style="font-size:12px; margin:6px 0 8px;">
+             ${escapeHtml(summary)}
+           </div>`
+      : ""
+    }
+      <ul style="padding-left:18px; margin:0;">
+        ${lis}
+      </ul>
+    </div>
+  `.trim();
+
+  return { textPlain, textHtml };
+}
+
+
+
 
 export type Attachment = {
   id: string;
@@ -400,6 +468,9 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const completedOnceRef = useRef<Set<string>>(new Set());
 
+  const [copied, setCopied] = useState(false);
+
+
   // arriba, junto a otros useRef/useState
   const summaryRef = useRef<HTMLTextAreaElement>(null);
 
@@ -635,6 +706,52 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
 
 
 
+  // --- [COPY HANDLER] ---
+  const handleCopySelected = useCallback(async () => {
+    if (!selected) return;
+
+    const payload = buildClipboardPayload({
+      title: selected.title,
+      summary: selected.summary ?? "",
+      items: selected.notes.map((n) => ({ text: n.text, done: n.done })),
+    });
+
+    try {
+      const hasRichWrite =
+        typeof window !== "undefined" &&
+        "ClipboardItem" in window &&
+        typeof navigator.clipboard.write === "function";
+
+      if (hasRichWrite) {
+        const item = new ClipboardItem({
+          "text/html": new Blob([payload.textHtml], { type: "text/html" }),
+          "text/plain": new Blob([payload.textPlain], { type: "text/plain" }),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(payload.textPlain);
+      }
+
+      // activa tooltip
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      try {
+        await navigator.clipboard.writeText(payload.textPlain);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [selected]);
+
+
+
+
+
+
+
 
 
 
@@ -808,7 +925,7 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                     );
                   }}
                 />
-                
+
               </div>
 
 
@@ -854,6 +971,25 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                   </button>
                 </div>
               </div>
+
+              <div className="relative inline-block">
+                <button
+                  onClick={handleCopySelected}
+                  className=" mt-6  px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 
+               hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                >
+                  Copiar
+                </button>
+
+                {copied && (
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 translate-y-0
+                px-2 py-1 rounded-md bg-black text-white text-xs
+                opacity-90 animate-fadeOnly">
+                    ¡Copiado!
+                  </div>
+                )}
+              </div>
+
 
               <div className="mt-6 text-xs text-gray-400">
                 Creado (UTC): {formatUTC(selected.createdAt)}
