@@ -110,6 +110,8 @@ function buildClipboardPayload(params: {
 
 
 
+
+
 export type Attachment = {
   id: string;
   name: string;
@@ -479,6 +481,8 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const completedOnceRef = useRef<Set<string>>(new Set());
 
+  const detailTopRef = useRef<HTMLDivElement | null>(null);
+
   const [copied, setCopied] = useState(false);
 
 
@@ -758,6 +762,38 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   }, [selected]);
 
 
+useEffect(() => {
+  if (!selected) return;
+
+  // Función que scrollea con compensación del header sticky
+  const scrollToDetailTop = () => {
+    const el = detailTopRef.current;
+    if (!el) return;
+
+    const header = document.querySelector("header");
+    const headerH =
+      header && header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
+
+    const extra = 12; // pequeño colchón visual
+    const y = el.getBoundingClientRect().top + window.scrollY - headerH - extra;
+
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  // 1) Espera a que se pinte el layout y scrollea
+  const raf1 = requestAnimationFrame(() => {
+    scrollToDetailTop();
+
+    // 2) Re-corrección por si adjuntos/autoGrow mueven el layout
+    setTimeout(scrollToDetailTop, 150);
+
+  });
+
+  return () => cancelAnimationFrame(raf1);
+}, [selected?.id]);
+
+
+
 
 
 
@@ -850,11 +886,13 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
         {/* DETALLE */}
         <section className="lg:col-span-2">
           {!selected ? (
-            <div className="p-6 border rounded-3xl bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700">
+            <div className="p-6 border rounded-3xl bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 scroll-mt-24 sm:scroll-mt-28">
               Selecciona o crea un proyecto para ver sus notas.
             </div>
           ) : (
-            <div className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div
+            ref={detailTopRef}
+             className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <input
                   value={localTitle}
