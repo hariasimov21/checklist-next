@@ -59,16 +59,24 @@ function escapeHtml(s: string) {
  */
 function buildClipboardPayload(params: {
   title: string;
+
   summary?: string | null;
+
   items: { text: string; done?: boolean }[];
 }) {
   const title = (params.title ?? "").trim();
   const summary = (params.summary ?? "").trim();
+  const tit = "Titulo"
+  const check = "Checklist"
+  const sum = "Resumen"
 
   // Texto plano (fallback universal)
   const textPlain =
+    `${tit}\n` +
     `${title}\n` +
+    `${sum}\n` +
     (summary ? `${summary}\n` : "") +
+    `${check}\n` +
     params.items.map((i) => `* ${i.text}`).join("\n");
 
   // HTML con estilos inline simples
@@ -78,15 +86,18 @@ function buildClipboardPayload(params: {
 
   const textHtml = `
     <div>
+      <div style="font-size:16px; font-weight:600; margin-bottom:4px;">${escapeHtml(tit)}</div>
       <div style="font-size:14px; font-weight:600; margin-bottom:4px;">
         ${escapeHtml(title)}
       </div>
+      <div style="font-size:13px; margin:6px 0 8px;">${escapeHtml(sum)}</div>
       ${summary
       ? `<div style="font-size:12px; margin:6px 0 8px;">
              ${escapeHtml(summary)}
            </div>`
       : ""
     }
+      <div style="font-size:13px; margin:6px 0 8px;">${escapeHtml(check)}</div>
       <ul style="padding-left:18px; margin:0;">
         ${lis}
       </ul>
@@ -982,10 +993,10 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
                 </button>
 
                 {copied && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 translate-y-0
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 translate-y-0
                 px-2 py-1 rounded-md bg-black text-white text-xs
-                opacity-90 animate-fadeOnly">
-                    ¡Copiado!
+                opacity-90 animate-fadeOnly whitespace-nowrap">
+                    ¡Copiado en el portapapeles!
                   </div>
                 )}
               </div>
