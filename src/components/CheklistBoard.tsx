@@ -39,6 +39,7 @@ declare global {
 
 
 
+
 // --- [CLIPBOARD UTILS] ---
 // Evita inyección si alguna nota tiene < > & etc.
 function escapeHtml(s: string) {
@@ -485,6 +486,9 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
 
   const [copied, setCopied] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
 
   // arriba, junto a otros useRef/useState
   const summaryRef = useRef<HTMLTextAreaElement>(null);
@@ -762,35 +766,35 @@ export default function ChecklistBoard({ initialCards }: { initialCards: Card[] 
   }, [selected]);
 
 
-useEffect(() => {
-  if (!selected) return;
+  useEffect(() => {
+    if (!selected) return;
 
-  // Función que scrollea con compensación del header sticky
-  const scrollToDetailTop = () => {
-    const el = detailTopRef.current;
-    if (!el) return;
+    // Función que scrollea con compensación del header sticky
+    const scrollToDetailTop = () => {
+      const el = detailTopRef.current;
+      if (!el) return;
 
-    const header = document.querySelector("header");
-    const headerH =
-      header && header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
+      const header = document.querySelector("header");
+      const headerH =
+        header && header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
 
-    const extra = 12; // pequeño colchón visual
-    const y = el.getBoundingClientRect().top + window.scrollY - headerH - extra;
+      const extra = 12; // pequeño colchón visual
+      const y = el.getBoundingClientRect().top + window.scrollY - headerH - extra;
 
-    window.scrollTo({ top: y, behavior: "smooth" });
-  };
+      window.scrollTo({ top: y, behavior: "smooth" });
+    };
 
-  // 1) Espera a que se pinte el layout y scrollea
-  const raf1 = requestAnimationFrame(() => {
-    scrollToDetailTop();
+    // 1) Espera a que se pinte el layout y scrollea
+    const raf1 = requestAnimationFrame(() => {
+      scrollToDetailTop();
 
-    // 2) Re-corrección por si adjuntos/autoGrow mueven el layout
-    setTimeout(scrollToDetailTop, 150);
+      // 2) Re-corrección por si adjuntos/autoGrow mueven el layout
+      setTimeout(scrollToDetailTop, 150);
 
-  });
+    });
 
-  return () => cancelAnimationFrame(raf1);
-}, [selected?.id]);
+    return () => cancelAnimationFrame(raf1);
+  }, [selected?.id]);
 
 
 
@@ -857,28 +861,31 @@ useEffect(() => {
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* LISTA DE TARJETAS */}
         <section className="space-y-3 lg:col-span-1">
-          <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={filtered.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              {filtered.length === 0 && (
-                <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                  No hay proyectos que coincidan.
-                </div>
-              )}
 
-              {filtered.map((card) => (
-                <SortableCardItem
-                  key={card.id}
-                  card={card}
-                  isSelected={selectedId === card.id}
-                  onSelect={() => setSelectedId(card.id)}
-                  onDelete={() => onDeleteCard(card.id)}
-                  onRemoveTag={(t) => onRemoveTagOptimistic(card.id, t)}
-                  completion={completion}
-                  isCardComplete={isCardComplete}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+          {mounted && (
+            <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={filtered.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                {filtered.length === 0 && (
+                  <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    No hay proyectos que coincidan.
+                  </div>
+                )}
+
+                {filtered.map((card) => (
+                  <SortableCardItem
+                    key={card.id}
+                    card={card}
+                    isSelected={selectedId === card.id}
+                    onSelect={() => setSelectedId(card.id)}
+                    onDelete={() => onDeleteCard(card.id)}
+                    onRemoveTag={(t) => onRemoveTagOptimistic(card.id, t)}
+                    completion={completion}
+                    isCardComplete={isCardComplete}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
         </section>
 
 
@@ -891,8 +898,8 @@ useEffect(() => {
             </div>
           ) : (
             <div
-            ref={detailTopRef}
-             className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              ref={detailTopRef}
+              className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <input
                   value={localTitle}
