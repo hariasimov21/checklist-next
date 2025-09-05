@@ -8,8 +8,14 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Checklist",
+  title: "Gestor de Tareas",
   description: "app Checklist simple pero inquebrantable",
+  icons: {
+    icon: [
+      { url: "/paw-dark.png", media: "(prefers-color-scheme: dark)" },
+      { url: "/paw-light.png", media: "(prefers-color-scheme: light)" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
