@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 export type Attachment = {
@@ -200,7 +201,7 @@ function PreviewBody({ att, signedUrl }: { att: Attachment; signedUrl: string })
   const mime = att.mime;
 
   if (mime.startsWith("image/")) {
-    return <img src={signedUrl} alt={att.name} className="max-h-[70vh] max-w-full object-contain mx-auto" />;
+    return <img src={signedUrl} alt={att.name} className="max-h-[70vh] max-w-full object-contain mx-auto" loading="lazy" />;
   }
   if (mime === "application/pdf") {
     return <iframe src={signedUrl} className="w-full h-[70vh] rounded-lg border" title={att.name} />;
