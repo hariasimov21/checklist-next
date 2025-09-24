@@ -497,7 +497,7 @@ export default function ChecklistBoard({
     initialCards[0]?.id ?? null
   );
   const [search, setSearch] = useState("");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  //const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Conjunto de tarjetas que YA celebraron (para no repetir)
   const completedOnceRef = useRef<Set<string>>(new Set());
@@ -612,9 +612,9 @@ export default function ChecklistBoard({
     []
   );
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = 0.3;
-  }, []);
+  // useEffect(() => {
+  //   if (audioRef.current) audioRef.current.volume = 0.3;
+  // }, []);
 
   // Al cambiar de tablero: considera "ya celebradas" todas las que estén completas
   useEffect(() => {
@@ -625,8 +625,8 @@ export default function ChecklistBoard({
   // Reproduce sonido SOLO cuando una tarjeta pasa de incompleta -> completa
   useEffect(() => {
     if (!canPlay) return;
-    const el = audioRef.current;
-    if (!el) return;
+    //const el = audioRef.current;
+    //if (!el) return;
 
     const completedNow = new Set(cards.filter(isCardComplete).map((c) => c.id));
 
@@ -638,16 +638,7 @@ export default function ChecklistBoard({
       }
     }
 
-    if (newlyCompleted.length > 0) {
-      try {
-        el.pause();
-        el.currentTime = 0;
-        el.volume = 0.3;
-        void el.play();
-      } catch {
-        /* ignore */
-      }
-    }
+
 
     // Actualiza el set: añade completadas actuales
     for (const id of completedNow) {
@@ -1134,7 +1125,7 @@ export default function ChecklistBoard({
       <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
         Hecho con 🖤 por Clarisse para su amo. Menos es más.
       </footer>
-      <audio ref={audioRef} src="/sounds/stamp.wav" preload="auto" />
+      {/* <audio ref={audioRef} src="/sounds/stamp.wav" preload="auto" /> */}
     </div>
   );
 }
