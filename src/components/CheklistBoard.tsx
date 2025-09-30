@@ -20,6 +20,7 @@ import {
   removeTag,
   reorderCards,
   createBoard,
+  deleteBoard
 } from "@/app/actions";
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
@@ -367,10 +368,12 @@ function BoardSelect({
   boards,
   activeBoardId,
   onChange,
+  onDeleteBoard,
 }: {
   boards: { id: string; name: string }[];
   activeBoardId: string;
   onChange: (id: string) => void;
+  onDeleteBoard: (id: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const active = boards.find(b => b.id === activeBoardId);
@@ -382,6 +385,8 @@ function BoardSelect({
         onClick={() => setOpen(o => !o)}
         title={active?.name ?? ""}
         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 max-w-[58vw] sm:max-w-xs"
+        aria-haspopup="listbox"
+        aria-expanded={open}
       >
         <span className="truncate">{active?.name ?? "Tablero"}</span>
         <svg width="16" height="16" viewBox="0 0 20 20" className="shrink-0 opacity-70">
@@ -395,22 +400,41 @@ function BoardSelect({
           role="listbox"
         >
           {boards.map(b => (
-            <button
+            <div
               key={b.id}
-              type="button"
-              onClick={() => { setOpen(false); onChange(b.id); }}
-              className={`block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+              className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
                 b.id === activeBoardId ? "font-medium" : ""
               }`}
               title={b.name}
             >
-              <span className="truncate block">{b.name}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => { setOpen(false); onChange(b.id); }}
+                className="truncate text-left flex-1"
+                role="option"
+                aria-selected={b.id === activeBoardId}
+              >
+                {b.name}
+              </button>
+
+              {/* Botón eliminar (X) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteBoard(b.id);
+                }}
+                className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                aria-label={`Eliminar tablero ${b.name}`}
+                title="Eliminar tablero"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Cierra al clickear fuera */}
       {open && (
         <button
           aria-label="backdrop"
@@ -611,6 +635,27 @@ export default function ChecklistBoard({
     },
     []
   );
+
+    const handleDeleteBoard = React.useCallback(async (id: string) => {
+    const board = boards.find(b => b.id === id);
+    if (!board) return;
+
+    const ok = confirm(`¿Seguro que quieres eliminar el tablero "${board.name}"? Esta acción no se puede deshacer.`);
+    if (!ok) return;
+
+    // Fallback: primer tablero distinto del eliminado (si no hay, redirige a /boards)
+    const fallback = boards.find(b => b.id !== id)?.id;
+
+    await deleteBoard(id);
+
+    if (id === activeBoardId) {
+      if (fallback) router.push(`/boards/${fallback}`);
+      else router.push(`/boards`); // ruta índice si la tienes
+    } else {
+      router.refresh();
+    }
+  }, [boards, activeBoardId, router]);
+
 
   // useEffect(() => {
   //   if (audioRef.current) audioRef.current.volume = 0.3;
@@ -866,6 +911,7 @@ export default function ChecklistBoard({
         boards={boards}
         activeBoardId={activeBoardId}
         onChange={(id) => router.push(`/boards/${id}`)}
+        onDeleteBoard={handleDeleteBoard} // ⬅️ NUEVO
       />
 
       <button

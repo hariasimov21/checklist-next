@@ -49,6 +49,13 @@ export async function createBoard(name: string) {
   return board;
 }
 
+export async function deleteBoard(boardId: string) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  await prisma.board.delete({ where: { id: boardId, userId } });
+}
+
 /** Trae SOLO las cards del tablero activo (boardId) del usuario */
 export async function getCards(boardId: string) {
   const session = await getServerSession(authOptions);
