@@ -80,11 +80,10 @@ function buildClipboardPayload(params: {
         ${escapeHtml(title)}
       </div>
       <div style="font-size:13px; margin:6px 0 8px;">${escapeHtml(sum)}</div>
-      ${
-        summary
-          ? `<div style="font-size:12px; margin:6px 0 8px;">${escapeHtml(summary)}</div>`
-          : ""
-      }
+      ${summary
+      ? `<div style="font-size:12px; margin:6px 0 8px;">${escapeHtml(summary)}</div>`
+      : ""
+    }
       <div style="font-size:13px; margin:6px 0 8px;">${escapeHtml(check)}</div>
       <ul style="padding-left:18px; margin:0;">${lis}</ul>
     </div>
@@ -210,9 +209,8 @@ const NoteRow = React.memo(function NoteRow({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 ${
-              note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
-            }`}
+            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
+              }`}
             title="Haz clic para editar"
           >
             <span className="block break-words whitespace-pre-wrap">{note.text}</span>
@@ -281,9 +279,8 @@ function SortableCardItem({
             onSelect();
           }
         }}
-        className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${
-          isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
-        }`}
+        className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+          }`}
       >
         {isCardComplete(card) && (
           <Stamp size={72} className="absolute -top-4 -left-4 sm:-top-6 sm:-left-6" />
@@ -402,9 +399,8 @@ function BoardSelect({
           {boards.map(b => (
             <div
               key={b.id}
-              className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                b.id === activeBoardId ? "font-medium" : ""
-              }`}
+              className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${b.id === activeBoardId ? "font-medium" : ""
+                }`}
               title={b.name}
             >
               <button
@@ -458,9 +454,8 @@ function Stamp({ size = 72, className = "" }: { size?: number; className?: strin
   return (
     <div
       aria-label="Tarjeta lista"
-      className={`pointer-events-none ${className} ${
-        ready ? "stamp-enter-active" : "stamp-enter"
-      }`}
+      className={`pointer-events-none ${className} ${ready ? "stamp-enter-active" : "stamp-enter"
+        }`}
     >
       <Image
         src="/paw-dark.png"
@@ -543,6 +538,8 @@ export default function ChecklistBoard({
     };
   }, []);
 
+
+
   const summaryRef = useRef<HTMLTextAreaElement>(null);
   const autoGrowSummary = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -555,6 +552,14 @@ export default function ChecklistBoard({
     []
   );
 
+  // --- Paginación ---
+  const PAGE_SIZE = 5;
+  const [page, setPage] = useState(1);
+
+  // Cuando cambie el filtro (search) o cambie el tablero, volvemos a la página 1
+  useEffect(() => { setPage(1); }, [search, activeBoardId]);
+
+  // Colección filtrada (ya existe)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return cards;
@@ -565,6 +570,12 @@ export default function ChecklistBoard({
         c.notes.some((n) => n.text.toLowerCase().includes(q))
     );
   }, [cards, search]);
+
+  // Paginados
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const visible = filtered.slice(start, start + PAGE_SIZE);
 
   const selected = useMemo(
     () => cards.find((c) => c.id === selectedId) ?? null,
@@ -607,11 +618,11 @@ export default function ChecklistBoard({
           c.id !== cardId
             ? c
             : {
-                ...c,
-                notes: c.notes.map((n) =>
-                  n.id === noteId ? { ...n, done: !currentDone } : n
-                ),
-              }
+              ...c,
+              notes: c.notes.map((n) =>
+                n.id === noteId ? { ...n, done: !currentDone } : n
+              ),
+            }
         )
       );
       startTransition(async () => {
@@ -623,11 +634,11 @@ export default function ChecklistBoard({
               c.id !== cardId
                 ? c
                 : {
-                    ...c,
-                    notes: c.notes.map((n) =>
-                      n.id === noteId ? { ...n, done: currentDone } : n
-                    ),
-                  }
+                  ...c,
+                  notes: c.notes.map((n) =>
+                    n.id === noteId ? { ...n, done: currentDone } : n
+                  ),
+                }
             )
           );
         }
@@ -636,7 +647,7 @@ export default function ChecklistBoard({
     []
   );
 
-    const handleDeleteBoard = React.useCallback(async (id: string) => {
+  const handleDeleteBoard = React.useCallback(async (id: string) => {
     const board = boards.find(b => b.id === id);
     if (!board) return;
 
@@ -706,11 +717,11 @@ export default function ChecklistBoard({
           c.id !== cardId
             ? c
             : {
-                ...c,
-                notes: c.notes.map((n) =>
-                  n.id === noteId ? { ...n, text: newText } : n
-                ),
-              }
+              ...c,
+              notes: c.notes.map((n) =>
+                n.id === noteId ? { ...n, text: newText } : n
+              ),
+            }
         )
       );
       startTransition(() => editNote(noteId, newText));
@@ -787,41 +798,64 @@ export default function ChecklistBoard({
           c.id !== cardId
             ? c
             : {
-                ...c,
-                notes: [
-                  ...c.notes,
-                  { id: created.id, text: created.text, done: created.done },
-                ],
-              }
+              ...c,
+              notes: [
+                ...c.notes,
+                { id: created.id, text: created.text, done: created.done },
+              ],
+            }
         )
       );
     });
   }, []);
 
   /* Drag & drop reordenar */
-  const onDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
+const onDragEnd = useCallback(
+  (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-      const visibleIds = filtered.map((c) => c.id);
-      const from = visibleIds.indexOf(String(active.id));
-      const to = visibleIds.indexOf(String(over.id));
-      if (from < 0 || to < 0) return;
+    // Índices globales dentro de 'filtered'
+    const filteredIds = filtered.map((c) => c.id);
+    const fromGlobal = filteredIds.indexOf(String(active.id));
+    const toGlobal   = filteredIds.indexOf(String(over.id));
+    if (fromGlobal < 0 || toGlobal < 0) return;
 
-      const newVisibleIds = arrayMove(visibleIds, from, to);
+    // Rango de la página visible en el array 'filtered'
+    const pageStart = start;
+    const pageEndExclusive = Math.min(start + PAGE_SIZE, filtered.length);
 
-      const byId = new Map(cards.map((c) => [c.id, c]));
-      const reordered = [
-        ...newVisibleIds.map((id) => byId.get(id)!),
-        ...cards.filter((c) => !newVisibleIds.includes(c.id)),
-      ];
+    // Sólo permitir drag si ambos están en la página actual
+    if (
+      fromGlobal < pageStart || fromGlobal >= pageEndExclusive ||
+      toGlobal   < pageStart || toGlobal   >= pageEndExclusive
+    ) {
+      return;
+    }
 
-      setCards(reordered);
-      void reorderCards(reordered.map((c) => c.id));
-    },
-    [cards, filtered]
-  );
+    // Reordenamos 'filteredIds' globalmente, pero el movimiento está restringido por el chequeo anterior
+    const newFilteredIds = arrayMove(filteredIds, fromGlobal, toGlobal);
+
+    // Reconstruimos el arreglo 'cards' completo respetando el nuevo orden de 'filtered'
+    const byId = new Map(cards.map((c) => [c.id, c]));
+    const reorderedFiltered = newFilteredIds.map((id) => byId.get(id)!);
+
+    // Si 'filtered' es todo 'cards', basta con usar 'reorderedFiltered'.
+    // Si no, preservamos las no-filtradas en su posición relativa original.
+    const filteredSet = new Set(filteredIds);
+    const nonFiltered = cards.filter((c) => !filteredSet.has(c.id));
+
+    const reordered = [
+      ...reorderedFiltered,
+      ...nonFiltered,
+    ];
+
+    setCards(reordered);
+    void reorderCards(reordered.map((c) => c.id));
+  },
+  [cards, filtered, start]
+);
+
 
   /* Copiar al portapapeles */
   const handleCopySelected = useCallback(async () => {
@@ -897,75 +931,75 @@ export default function ChecklistBoard({
   return (
     <div className="min-h-screen relative bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       {/* HEADER */}
-<header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
-  <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2">
-    {/* Fila 1: título + selector de tablero + botón */}
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="text-lg sm:text-xl font-semibold mr-auto flex items-center gap-2">
-        <span>📒 Block de Tareas -</span>
-        <span className="hidden sm:inline">Clarisse</span>
-      </div>
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2">
+          {/* Fila 1: título + selector de tablero + botón */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-lg sm:text-xl font-semibold mr-auto flex items-center gap-2">
+              <span>📒 Block de Tareas -</span>
+              <span className="hidden sm:inline">Clarisse</span>
+            </div>
 
-      {/* Selector bonito con truncado */}
-      <BoardSelect
-        boards={boards}
-        activeBoardId={activeBoardId}
-        onChange={(id) => router.push(`/boards/${id}`)}
-        onDeleteBoard={handleDeleteBoard} // ⬅️ NUEVO
-      />
+            {/* Selector bonito con truncado */}
+            <BoardSelect
+              boards={boards}
+              activeBoardId={activeBoardId}
+              onChange={(id) => router.push(`/boards/${id}`)}
+              onDeleteBoard={handleDeleteBoard} // ⬅️ NUEVO
+            />
 
-      <button
-        onClick={async () => {
-          const name = prompt("Nombre del nuevo tablero");
-          if (!name?.trim()) return;
-          const b = await createBoard(name);
-          router.push(`/boards/${b.id}`);
-        }}
-        className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-      >
-        + Tablero
-      </button>
-    </div>
+            <button
+              onClick={async () => {
+                const name = prompt("Nombre del nuevo tablero");
+                if (!name?.trim()) return;
+                const b = await createBoard(name);
+                router.push(`/boards/${b.id}`);
+              }}
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+            >
+              + Tablero
+            </button>
+          </div>
 
-    {/* Fila 2: search + nuevo + salir + modo */}
-    <div className="flex items-center gap-2 flex-wrap">
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Buscar proyecto, tag o nota…"
-        className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[200px]"
-      />
+          {/* Fila 2: search + nuevo + salir + modo */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar proyecto, tag o nota…"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[200px]"
+            />
 
-      <input
-        value={newCardTitle}
-        onChange={(e) => setNewCardTitle(e.target.value)}
-        placeholder="Título proyecto"
-        className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 w-56"
-      />
+            <input
+              value={newCardTitle}
+              onChange={(e) => setNewCardTitle(e.target.value)}
+              placeholder="Título proyecto"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 w-56"
+            />
 
-      <button
-        onClick={() => {
-          if (!newCardTitle.trim()) return;
-          onCreateCard(newCardTitle);
-          setNewCardTitle("");
-        }}
-        className="px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 disabled:opacity-60"
-        disabled={isPending || !newCardTitle.trim()}
-      >
-        Nuevo
-      </button>
+            <button
+              onClick={() => {
+                if (!newCardTitle.trim()) return;
+                onCreateCard(newCardTitle);
+                setNewCardTitle("");
+              }}
+              className="px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 disabled:opacity-60"
+              disabled={isPending || !newCardTitle.trim()}
+            >
+              Nuevo
+            </button>
 
-      <button
-        onClick={() => signOut({ callbackUrl: "/login" })}
-        className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-      >
-        Salir
-      </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+            >
+              Salir
+            </button>
 
-      <ModeToggle />
-    </div>
-  </div>
-</header>
+            <ModeToggle />
+          </div>
+        </div>
+      </header>
 
 
       {/* MAIN */}
@@ -975,16 +1009,16 @@ export default function ChecklistBoard({
           {mounted && (
             <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext
-                items={filtered.map((c) => c.id)}
+                items={visible.map((c) => c.id)}               // << aquí
                 strategy={verticalListSortingStrategy}
               >
-                {filtered.length === 0 && (
+                {visible.length === 0 && (                      // << y aquí
                   <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                     No hay proyectos que coincidan.
                   </div>
                 )}
 
-                {filtered.map((card) => (
+                {visible.map((card) => (                        // << y aquí
                   <SortableCardItem
                     key={card.id}
                     card={card}
@@ -999,7 +1033,47 @@ export default function ChecklistBoard({
               </SortableContext>
             </DndContext>
           )}
+
+          {/* Controles de paginación */}
+          {filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50"
+                onClick={() => setPage(1)}
+                disabled={currentPage === 1}
+              >
+                « Primero
+              </button>
+              <button
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                ‹ Anterior
+              </button>
+
+              <span className="text-xs opacity-70">
+                Página {currentPage} / {totalPages}
+              </span>
+
+              <button
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente ›
+              </button>
+              <button
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50"
+                onClick={() => setPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Último »
+              </button>
+            </div>
+          )}
         </section>
+
 
         {/* DETALLE */}
         <section className="lg:col-span-2">
