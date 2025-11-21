@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("BODY recibido en signup:", body);
+    console.log("Signup attempt", { email: body?.email });
 
     const { email, password, name } = body ?? {};
     if (!email || !password) {

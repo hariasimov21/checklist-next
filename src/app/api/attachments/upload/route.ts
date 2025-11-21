@@ -2,16 +2,32 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { randomUUID } from "crypto";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
     const form = await req.formData();
 
     const cardId = String(form.get("cardId") || "");
     if (!cardId) {
       return NextResponse.json({ error: "cardId requerido" }, { status: 400 });
+    }
+
+    const ownsCard = await prisma.card.findFirst({
+      where: { id: cardId, userId },
+      select: { id: true },
+    });
+    if (!ownsCard) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const files = form.getAll("files") as File[];

@@ -128,10 +128,15 @@ export async function createCard(title: string, boardId: string) {
 
 /** Compat: si aún la usas en algún sitio; ahora mejor usa getCards(boardId) */
 export async function getCardsForUser(userId: string) {
-  // ⚠️ OJO: esta función ignora boardId y trae TODO.
-  // Mantengo por compatibilidad, pero idealmente migra a getCards(boardId).
+  const session = await getServerSession(authOptions);
+  const currentUserId = assertAuth(session);
+
+  if (userId && userId !== currentUserId) {
+    throw new Error("No autorizado");
+  }
+
   return prisma.card.findMany({
-    where: { userId },
+    where: { userId: currentUserId },
     orderBy: [{ position: "asc" }, { createdAt: "desc" }],
     select: {
       id: true, title: true, tags: true, summary: true, createdAt: true, position: true,
@@ -225,23 +230,42 @@ export async function addNote(cardId: string, text: string) {
 
 export async function toggleNote(noteId: string) {
   const session = await getServerSession(authOptions);
-  assertAuth(session);
+  const userId = assertAuth(session);
 
-  // alterna atómicamente
-  await prisma.$executeRaw`UPDATE "Note" SET "done" = NOT "done" WHERE "id" = ${noteId}`;
-  // sin revalidatePath (UI optimista)
+  const note = await prisma.note.findFirst({
+    where: { id: noteId, card: { userId } },
+    select: { id: true, done: true },
+  });
+  if (!note) throw new Error("Nota no encontrada o no es tuya");
+
+  await prisma.note.update({
+    where: { id: noteId },
+    data: { done: !note.done },
+  });
 }
 
 export async function editNote(noteId: string, text: string) {
   const session = await getServerSession(authOptions);
-  assertAuth(session);
+  const userId = assertAuth(session);
+
+  const note = await prisma.note.findFirst({
+    where: { id: noteId, card: { userId } },
+    select: { id: true },
+  });
+  if (!note) throw new Error("Nota no encontrada o no es tuya");
 
   await prisma.note.update({ where: { id: noteId }, data: { text } });
 }
 
 export async function removeNote(noteId: string) {
   const session = await getServerSession(authOptions);
-  assertAuth(session);
+  const userId = assertAuth(session);
+
+  const note = await prisma.note.findFirst({
+    where: { id: noteId, card: { userId } },
+    select: { id: true },
+  });
+  if (!note) throw new Error("Nota no encontrada o no es tuya");
 
   await prisma.note.delete({ where: { id: noteId } });
 }
