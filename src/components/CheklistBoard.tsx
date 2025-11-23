@@ -593,7 +593,7 @@ export default function ChecklistBoard({
   const [localSummary, setLocalSummary] = useState<string>(selected?.summary ?? "");
   useEffect(() => {
     setLocalSummary(selected?.summary ?? "");
-  }, [selected?.id]);
+  }, [selected?.id, selected?.summary]);
 
   const saveSummary = useCallback((id: string, summary: string) => {
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, summary } : c)));
@@ -603,7 +603,7 @@ export default function ChecklistBoard({
   const [localTitle, setLocalTitle] = useState<string>(selected?.title ?? "");
   useEffect(() => {
     setLocalTitle(selected?.title ?? "");
-  }, [selected?.id]);
+  }, [selected?.id, selected?.title]);
 
   const saveTitle = useCallback((id: string, title: string) => {
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
@@ -921,7 +921,7 @@ const onDragEnd = useCallback(
     });
 
     return () => cancelAnimationFrame(raf1);
-  }, [selected?.id]);
+  }, [selected]);
 
   /* Formularios */
   const [newCardTitle, setNewCardTitle] = useState("");
