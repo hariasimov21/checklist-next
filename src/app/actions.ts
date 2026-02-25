@@ -271,6 +271,110 @@ export async function removeNote(noteId: string) {
 }
 
 /* ===========================
+ *       PERSONAL NOTES
+ * =========================== */
+
+export async function listUserNotes() {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+  // Compat de tipos mientras se ejecuta `prisma generate` con el nuevo modelo.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userNote = (prisma as any).userNote;
+
+  return userNote.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      fontSize: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
+
+export async function createUserNote() {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userNote = (prisma as any).userNote;
+
+  const note = await userNote.create({
+    data: { userId, title: "Nueva nota", content: "", fontSize: 16 },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      fontSize: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  revalidatePath("/notes");
+  return note;
+}
+
+export async function updateUserNote(
+  noteId: string,
+  patch: { title?: string; content?: string; fontSize?: number }
+) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userNote = (prisma as any).userNote;
+
+  const exists = await userNote.findFirst({
+    where: { id: noteId, userId },
+    select: { id: true },
+  });
+  if (!exists) throw new Error("Nota no encontrada o no es tuya");
+
+  const nextFontSize =
+    patch.fontSize === undefined
+      ? undefined
+      : Math.min(40, Math.max(12, Math.round(patch.fontSize)));
+
+  const note = await userNote.update({
+    where: { id: noteId },
+    data: {
+      ...(patch.title !== undefined ? { title: patch.title.trim() || "Nueva nota" } : {}),
+      ...(patch.content !== undefined ? { content: patch.content } : {}),
+      ...(nextFontSize !== undefined ? { fontSize: nextFontSize } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      fontSize: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  revalidatePath("/notes");
+  return note;
+}
+
+export async function deleteUserNote(noteId: string) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userNote = (prisma as any).userNote;
+
+  const exists = await userNote.findFirst({
+    where: { id: noteId, userId },
+    select: { id: true },
+  });
+  if (!exists) throw new Error("Nota no encontrada o no es tuya");
+
+  await userNote.delete({ where: { id: noteId } });
+  revalidatePath("/notes");
+}
+
+/* ===========================
  *           TAGS
  * =========================== */
 

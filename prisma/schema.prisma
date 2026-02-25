@@ -27,6 +27,7 @@ model User {
   sessions  Session[]
   boards    Board[]
   cards     Card[]
+  userNotes UserNote[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -62,6 +63,7 @@ model Card {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   board  Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
+  @@index([userId, position])
   @@index([userId, boardId, position])
 }
 
@@ -72,6 +74,20 @@ model Note {
   done   Boolean @default(false)
 
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+}
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("Nueva nota")
+  content   String   @default("")
+  fontSize  Int      @default(16)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }
 
 // -------- Auth.js (NextAuth v5) tablas recomendadas --------
@@ -121,5 +137,3 @@ model Attachment {
   size      Int
   createdAt DateTime @default(now())
 }
-
-

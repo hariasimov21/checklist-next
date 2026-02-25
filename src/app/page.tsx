@@ -1,60 +1,51 @@
-// app/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import ChecklistBoard from "@/components/CheklistBoard"; // ajusta la ruta
+import Link from "next/link";
+import { ModeToggle } from "@/components/ui/toogle";
 
 export default async function Page() {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id: string } | undefined)?.id;
   if (!userId) redirect("/login");
 
-  // 1) cargar o crear tablero "General" si no hay ninguno
-  let firstBoard = await prisma.board.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true },
-  });
-  if (!firstBoard) {
-    firstBoard = await prisma.board.create({
-      data: { userId, name: "General" },
-      select: { id: true, name: true },
-    });
-  }
-
-  // 2) todos los tableros (para el selector)
-  const boards = await prisma.board.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true },
-  });
-
-  // 3) tarjetas del tablero activo (el primero)
-  const activeBoardId = firstBoard.id;
-  const cards = await prisma.card.findMany({
-    where: { userId, boardId: activeBoardId },
-    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
-    select: {
-      id: true,
-      title: true,
-      summary: true,
-      tags: true,
-      createdAt: true,
-      position: true,
-      notes: { select: { id: true, text: true, done: true } },
-      attachments: {
-        select: { id: true, name: true, url: true, mime: true, size: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
-
   return (
-    <ChecklistBoard
-      initialCards={cards}
-      boards={boards}
-      activeBoardId={activeBoardId}
-    />
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-semibold mr-auto">Checklist</h1>
+          <ModeToggle />
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2">¿Qué quieres abrir?</h2>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-8">
+          Elige una modalidad antes de entrar.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link
+            href="/tasks"
+            className="rounded-3xl border p-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition"
+          >
+            <div className="text-xl font-semibold">Tareas</div>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Ir al tablero actual por usuario.
+            </p>
+          </Link>
+
+          <Link
+            href="/notes"
+            className="rounded-3xl border p-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md transition"
+          >
+            <div className="text-xl font-semibold">Notas</div>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Espacio tipo Apple Notes con edición continua.
+            </p>
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }
