@@ -117,7 +117,7 @@ type BoardLite = { id: string; name: string };
 /* --------- UI helpers --------- */
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+    <div className="w-full h-2 bg-stone-200 dark:bg-neutral-700 rounded-full overflow-hidden">
       <div
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         className="h-full transition-all bg-black dark:bg-white"
@@ -127,7 +127,7 @@ function ProgressBar({ value }: { value: number }) {
 }
 function Chip({ label }: { label: string }) {
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+    <span className="px-2 py-0.5 rounded-full text-xs bg-stone-100 dark:bg-neutral-800 border border-stone-200 dark:border-neutral-700">
       {label}
     </span>
   );
@@ -202,14 +202,14 @@ const NoteRow = React.memo(function NoteRow({
               if (e.key === "Escape") setIsEditing(false);
             }}
             rows={1}
-            className="flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 leading-relaxed resize-none overflow-hidden"
+            className="flex-1 w-full min-w-0 px-2 py-1 rounded-xl border bg-white dark:bg-neutral-900 border-stone-300 dark:border-neutral-700 leading-relaxed resize-none overflow-hidden"
             style={{ lineHeight: "1.5" }}
           />
         ) : (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 ${note.done ? "line-through text-gray-400 dark:text-gray-500" : ""
+            className={`text-left flex-1 w-full min-w-0 px-2 py-1 rounded-xl hover:bg-stone-100 dark:hover:bg-neutral-900 ${note.done ? "line-through text-stone-400 dark:text-stone-500" : ""
               }`}
             title="Haz clic para editar"
           >
@@ -220,7 +220,7 @@ const NoteRow = React.memo(function NoteRow({
 
       <button
         onClick={() => onRemoveOptimistic(cardId, note.id)}
-        className="shrink-0 ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+        className="shrink-0 ml-auto p-1 rounded hover:bg-stone-200 dark:hover:bg-neutral-700/60"
         title="Eliminar ítem"
       >
         <Image
@@ -279,7 +279,7 @@ function SortableCardItem({
             onSelect();
           }
         }}
-        className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
+        className={`relative w-full text-left p-4 rounded-2xl border bg-white dark:bg-neutral-800 border-stone-200 dark:border-neutral-700 hover:shadow transition ${isSelected ? "ring-2 ring-black/60 dark:ring-white/60" : ""
           }`}
       >
         {isCardComplete(card) && (
@@ -294,7 +294,7 @@ function SortableCardItem({
               {...attributes}
               {...listeners}
               onClick={(e) => e.stopPropagation()}
-              className="px-6 py-1.5 rounded-md text-base cursor-grab active:cursor-grabbing hover:bg-gray-200 dark:hover:bg-gray-700 select-none"
+              className="px-6 py-1.5 rounded-md text-base cursor-grab active:cursor-grabbing hover:bg-stone-200 dark:hover:bg-neutral-700/60 select-none"
               title="Arrastrar para reordenar"
             >
               ≡
@@ -305,7 +305,7 @@ function SortableCardItem({
                 e.stopPropagation();
                 if (confirm("¿Eliminar proyecto?")) onDelete();
               }}
-              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="p-1 rounded hover:bg-stone-200 dark:hover:bg-neutral-700/60"
               title="Eliminar proyecto"
             >
               <Image
@@ -335,7 +335,7 @@ function SortableCardItem({
                   e.stopPropagation();
                   onRemoveTag(t);
                 }}
-                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-neutral-300"
                 title="Quitar tag"
               >
                 ×
@@ -345,14 +345,14 @@ function SortableCardItem({
         </div>
 
         {card.summary && (
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+          <p className="mt-2 text-sm text-stone-600 dark:text-neutral-300 line-clamp-2">
             {card.summary}
           </p>
         )}
 
         <div className="mt-3">
           <ProgressBar value={completion(card)} />
-          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <div className="mt-1 text-xs text-stone-500 dark:text-neutral-400">
             {card.notes.filter((n) => n.done).length}/{card.notes.length} completadas
           </div>
         </div>
@@ -381,7 +381,7 @@ function BoardSelect({
         type="button"
         onClick={() => setOpen(o => !o)}
         title={active?.name ?? ""}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 max-w-[58vw] sm:max-w-xs"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 max-w-[58vw] sm:max-w-xs"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -393,13 +393,13 @@ function BoardSelect({
 
       {open && (
         <div
-          className="absolute z-20 mt-2 w-[min(70vw,18rem)] max-h-64 overflow-auto rounded-xl border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg"
+          className="absolute z-20 mt-2 w-[min(70vw,18rem)] max-h-64 overflow-auto rounded-xl border bg-white dark:bg-neutral-800 border-stone-200 dark:border-neutral-700 shadow-lg"
           role="listbox"
         >
           {boards.map(b => (
             <div
               key={b.id}
-              className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${b.id === activeBoardId ? "font-medium" : ""
+              className={`flex items-center gap-2 px-3 py-2 hover:bg-stone-50 dark:hover:bg-neutral-700/60 ${b.id === activeBoardId ? "font-medium" : ""
                 }`}
               title={b.name}
             >
@@ -929,12 +929,20 @@ const onDragEnd = useCallback(
   const [newTagText, setNewTagText] = useState("");
 
   return (
-    <div className="min-h-screen relative bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <div className="min-h-screen relative bg-stone-100 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
       {/* HEADER */}
-      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-neutral-900/70 border-b border-stone-200 dark:border-neutral-700">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col gap-3 sm:gap-2">
           {/* Fila 1: título + selector de tablero + botón */}
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => router.push("/")}
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700"
+              title="Volver a modalidades"
+            >
+              ← Volver
+            </button>
+
             <div className="text-lg sm:text-xl font-semibold mr-auto flex items-center gap-2">
               <span>📒 Block de Tareas -</span>
               <span className="hidden sm:inline">Clarisse</span>
@@ -955,7 +963,7 @@ const onDragEnd = useCallback(
                 const b = await createBoard(name);
                 router.push(`/boards/${b.id}`);
               }}
-              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700"
             >
               + Tablero
             </button>
@@ -967,14 +975,14 @@ const onDragEnd = useCallback(
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar proyecto, tag o nota…"
-              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 flex-1 min-w-[200px]"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 placeholder-stone-500 dark:placeholder-neutral-400 flex-1 min-w-[200px]"
             />
 
             <input
               value={newCardTitle}
               onChange={(e) => setNewCardTitle(e.target.value)}
               placeholder="Título proyecto"
-              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 w-56"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 placeholder-stone-500 dark:placeholder-neutral-400 w-56"
             />
 
             <button
@@ -991,7 +999,7 @@ const onDragEnd = useCallback(
 
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+              className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700"
             >
               Salir
             </button>
@@ -1013,7 +1021,7 @@ const onDragEnd = useCallback(
                 strategy={verticalListSortingStrategy}
               >
                 {visible.length === 0 && (                      // << y aquí
-                  <div className="p-4 border rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border rounded-2xl bg-white dark:bg-neutral-800 border-stone-200 dark:border-neutral-700">
                     No hay proyectos que coincidan.
                   </div>
                 )}
@@ -1078,13 +1086,13 @@ const onDragEnd = useCallback(
         {/* DETALLE */}
         <section className="lg:col-span-2">
           {!selected ? (
-            <div className="p-6 border rounded-3xl bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 scroll-mt-24 sm:scroll-mt-28">
+            <div className="p-6 border rounded-3xl bg-white dark:bg-neutral-800 text-stone-600 dark:text-neutral-300 border-stone-200 dark:border-neutral-700 scroll-mt-24 sm:scroll-mt-28">
               Selecciona o crea un proyecto para ver sus notas.
             </div>
           ) : (
             <div
               ref={detailTopRef}
-              className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+              className="p-4 sm:p-6 border rounded-3xl bg-white dark:bg-neutral-800 border-stone-200 dark:border-neutral-700"
             >
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <input
@@ -1097,7 +1105,7 @@ const onDragEnd = useCallback(
                     }
                   }}
                   onBlur={() => saveTitle(selected.id, localTitle.trim())}
-                  className="text-lg sm:text-xl font-semibold w-full border-b focus:outline-none bg-transparent border-gray-300 dark:border-gray-700"
+                  className="text-lg sm:text-xl font-semibold w-full border-b focus:outline-none bg-transparent border-stone-300 dark:border-neutral-700"
                 />
               </div>
 
@@ -1106,7 +1114,7 @@ const onDragEnd = useCallback(
                   value={newTagText}
                   onChange={(e) => setNewTagText(e.target.value)}
                   placeholder="Añadir tag (Enter)"
-                  className="px-3 py-2 rounded-xl border w-full sm:w-56 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+                  className="px-3 py-2 rounded-xl border w-full sm:w-56 bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newTagText.trim()) {
                       onAddTagOptimistic(selected.id, newTagText);
@@ -1121,7 +1129,7 @@ const onDragEnd = useCallback(
 
               {/* RESUMEN */}
               <div className="mt-3">
-                <label className="block text-lg text-gray-500 dark:text-gray-400 mb-1">
+                <label className="block text-lg text-stone-500 dark:text-neutral-400 mb-1">
                   Resumen de la tarea
                 </label>
 
@@ -1148,17 +1156,17 @@ const onDragEnd = useCallback(
                   }}
                   rows={1}
                   placeholder="Describe brevemente el objetivo, alcance y criterio de éxito…"
-                  className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring leading-relaxed"
+                  className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 focus:outline-none focus:ring leading-relaxed"
                   style={{ lineHeight: "1.5", resize: "none", overflow: "hidden" }}
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-stone-400">
                   Tip: presiona <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd> para guardar. :O
                 </p>
               </div>
 
               {/* ADJUNTOS */}
               <div className="mt-5">
-                <div className="text-lg text-gray-500 dark:text-gray-400 mb-2">Adjuntos</div>
+                <div className="text-lg text-stone-500 dark:text-neutral-400 mb-2">Adjuntos</div>
                 <AttachmentsBar
                   key={selected?.id}
                   cardId={selected!.id}
@@ -1175,7 +1183,7 @@ const onDragEnd = useCallback(
 
               {/* CHECKLIST */}
               <div className="mt-5">
-                <div className="text-lg text-gray-500 dark:text-gray-400 mb-2">
+                <div className="text-lg text-stone-500 dark:text-neutral-400 mb-2">
                   Checklist
                 </div>
                 <ul className="space-y-2">
@@ -1196,7 +1204,7 @@ const onDragEnd = useCallback(
                     value={newNoteText}
                     onChange={(e) => setNewNoteText(e.target.value)}
                     placeholder="Añadir nota/checklist (Enter)"
-                    className="px-3 py-2 rounded-xl border w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
+                    className="px-3 py-2 rounded-xl border w-full bg-white dark:bg-neutral-900 border-stone-300 dark:border-neutral-700"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newNoteText.trim()) {
                         onAddNote(selected.id, newNoteText);
@@ -1222,7 +1230,7 @@ const onDragEnd = useCallback(
               <div className="relative inline-block">
                 <button
                   onClick={handleCopySelected}
-                  className="mt-6 px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                  className="mt-6 px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 hover:bg-stone-50 dark:hover:bg-neutral-700/60 cursor-pointer"
                 >
                   Copiar
                 </button>
@@ -1234,7 +1242,7 @@ const onDragEnd = useCallback(
                 )}
               </div>
 
-              <div className="mt-6 text-xs text-gray-400">
+              <div className="mt-6 text-xs text-stone-400">
                 Creado (UTC): {formatUTC(selected.createdAt)}
               </div>
             </div>
@@ -1242,7 +1250,7 @@ const onDragEnd = useCallback(
         </section>
       </main>
 
-      <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-gray-400">
+      <footer className="max-w-7xl mx:auto px-3 sm:px-4 pb-10 text-center text-xs text-stone-400">
         Hecho con 🖤 por Clarisse para su amo. Menos es más.
       </footer>
       {/* <audio ref={audioRef} src="/sounds/stamp.wav" preload="auto" /> */}

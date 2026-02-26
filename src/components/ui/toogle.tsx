@@ -13,7 +13,7 @@ export function ModeToggle() {
   if (!mounted) {
     return (
       <button
-        className="inline-flex items-center rounded-md border px-2 py-1"
+        className="inline-flex items-center rounded-md border px-2 py-1 bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 text-stone-900 dark:text-neutral-100"
         aria-label="Toggle theme (loading)"
         disabled
       >
@@ -27,7 +27,7 @@ export function ModeToggle() {
   return (
     <button
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="inline-flex items-center gap-2 rounded-md border px-2 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+      className="inline-flex items-center gap-2 rounded-md border px-2 py-1 bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 text-stone-900 dark:text-neutral-100 hover:bg-stone-50 dark:hover:bg-neutral-700/60"
       aria-label="Alternar tema"
       title={isDark ? "Cambiar a Light" : "Cambiar a Dark"}
     >

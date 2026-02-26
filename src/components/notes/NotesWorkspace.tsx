@@ -43,6 +43,19 @@ function formatDate(value: string | Date) {
   }).format(dt);
 }
 
+function clearInlineFontSizes(root: HTMLElement) {
+  const styled = root.querySelectorAll<HTMLElement>("[style]");
+  styled.forEach((el) => {
+    el.style.removeProperty("font-size");
+    if (!el.getAttribute("style")?.trim()) {
+      el.removeAttribute("style");
+    }
+  });
+
+  const fontTags = root.querySelectorAll("font[size]");
+  fontTags.forEach((el) => el.removeAttribute("size"));
+}
+
 export default function NotesWorkspace({
   initialNotes,
 }: {
@@ -171,6 +184,15 @@ export default function NotesWorkspace({
     setDraftContent(html);
   }, []);
 
+  const changeFontSize = useCallback((nextSize: number) => {
+    const normalized = Math.min(40, Math.max(12, nextSize));
+    setDraftFontSize(normalized);
+    if (editorRef.current) {
+      clearInlineFontSizes(editorRef.current);
+      setDraftContent(editorRef.current.innerHTML);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
       <header className="sticky top-0 z-20 border-b border-stone-200 dark:border-neutral-700 bg-stone-100/90 dark:bg-neutral-900/90 backdrop-blur">
@@ -279,7 +301,7 @@ export default function NotesWorkspace({
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setDraftFontSize((s) => Math.max(12, s - 1))}
+                    onClick={() => changeFontSize(draftFontSize - 1)}
                     className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
                   >
                     A-
@@ -289,7 +311,7 @@ export default function NotesWorkspace({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setDraftFontSize((s) => Math.min(40, s + 1))}
+                    onClick={() => changeFontSize(draftFontSize + 1)}
                     className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
                   >
                     A+
@@ -319,10 +341,40 @@ export default function NotesWorkspace({
                   contentEditable
                   suppressContentEditableWarning
                   onInput={(e) => setDraftContent(e.currentTarget.innerHTML)}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData("text/plain");
+                    document.execCommand("insertText", false, text);
+                    if (editorRef.current) {
+                      setDraftContent(editorRef.current.innerHTML);
+                    }
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Tab") {
+                      e.preventDefault();
+                      if (e.shiftKey) {
+                        document.execCommand("outdent");
+                      } else {
+                        document.execCommand("insertText", false, "    ");
+                      }
+                      if (editorRef.current) {
+                        setDraftContent(editorRef.current.innerHTML);
+                      }
+                      return;
+                    }
+
+                    if (e.key !== "Enter") return;
+
+                    if (e.metaKey || e.ctrlKey) {
                       e.preventDefault();
                       saveCurrentNote();
+                      return;
+                    }
+
+                    e.preventDefault();
+                    document.execCommand("insertLineBreak");
+                    if (editorRef.current) {
+                      setDraftContent(editorRef.current.innerHTML);
                     }
                   }}
                   style={{ fontSize: `${draftFontSize}px` }}

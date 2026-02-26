@@ -38,3 +38,22 @@ body {
   content: attr(data-placeholder);
   color: #9ca3af;
 }
+
+@keyframes loadingProgress {
+  0% {
+    transform: translateX(-100%);
+    width: 35%;
+  }
+  50% {
+    transform: translateX(40%);
+    width: 45%;
+  }
+  100% {
+    transform: translateX(220%);
+    width: 35%;
+  }
+}
+
+.loading-progress {
+  animation: loadingProgress 1.1s ease-in-out infinite;
+}

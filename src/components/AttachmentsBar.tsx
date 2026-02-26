@@ -110,7 +110,7 @@ export function AttachmentsBar({
         <button
           onClick={pickFiles}
           disabled={busy}
-          className="px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60"
+          className="px-3 py-2 rounded-xl border bg-white dark:bg-neutral-800 border-stone-300 dark:border-neutral-700 hover:bg-stone-50 dark:hover:bg-neutral-700/60 disabled:opacity-60"
         >
           {busy ? "Subiendo..." : "Agregar archivos"}
         </button>
@@ -130,7 +130,7 @@ export function AttachmentsBar({
             <button
               key={att.id}
               onClick={() => openPreview(att)}
-              className="group inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              className="group inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm border-stone-300 dark:border-neutral-700 hover:bg-stone-50 dark:hover:bg-neutral-700/60 transition"
               title={att.name}
             >
               <span className="truncate max-w-[160px]">
@@ -142,7 +142,7 @@ export function AttachmentsBar({
                   e.stopPropagation();
                   handleRemove(att.id);
                 }}
-                className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-stone-200 dark:hover:bg-neutral-700/60"
                 title="Eliminar"
               >
                 ×
@@ -160,12 +160,12 @@ export function AttachmentsBar({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             aria-label="Cerrar"
           />
-          <div className="relative z-10 max-h-[90vh] w-[min(90vw,900px)] rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-auto">
-            <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="relative z-10 max-h-[90vh] w-[min(90vw,900px)] rounded-2xl bg-white dark:bg-neutral-900 shadow-2xl overflow-auto">
+            <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-stone-200 dark:border-neutral-700">
               <div className="font-semibold truncate">{preview.att.name}</div>
               <button
                 onClick={() => setPreview(null)}
-                className="px-2 py-1 rounded border hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="px-2 py-1 rounded border border-stone-300 dark:border-neutral-700 hover:bg-stone-50 dark:hover:bg-neutral-700/60"
               >
                 Cerrar
               </button>
