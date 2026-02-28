@@ -277,37 +277,79 @@ export async function removeNote(noteId: string) {
 export async function listUserNotes() {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
-  // Compat de tipos mientras se ejecuta `prisma generate` con el nuevo modelo.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userNote = (prisma as any).userNote;
 
-  return userNote.findMany({
+  return prisma.userNote.findMany({
     where: { userId },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ folderId: "asc" }, { position: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
+      folderId: true,
       title: true,
       content: true,
       fontSize: true,
+      position: true,
       createdAt: true,
       updatedAt: true,
     },
   });
 }
 
-export async function createUserNote() {
+export async function listUserNoteFolders() {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userNote = (prisma as any).userNote;
 
-  const note = await userNote.create({
-    data: { userId, title: "Nueva nota", content: "", fontSize: 16 },
+  return prisma.noteFolder.findMany({
+    where: { userId },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
+      name: true,
+      position: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { notes: true } },
+    },
+  });
+}
+
+async function getNextNotePosition(userId: string, folderId: string | null) {
+  const maxPos = await prisma.userNote.aggregate({
+    where: { userId, folderId },
+    _max: { position: true },
+  });
+  return (maxPos._max.position ?? -1) + 1;
+}
+
+export async function createUserNote(folderId?: string | null) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const normalizedFolderId = folderId ?? null;
+  if (normalizedFolderId) {
+    const folder = await prisma.noteFolder.findFirst({
+      where: { id: normalizedFolderId, userId },
+      select: { id: true },
+    });
+    if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
+  }
+
+  const position = await getNextNotePosition(userId, normalizedFolderId);
+  const note = await prisma.userNote.create({
+    data: {
+      userId,
+      folderId: normalizedFolderId,
+      title: "Nueva nota",
+      content: "",
+      fontSize: 16,
+      position,
+    },
+    select: {
+      id: true,
+      folderId: true,
       title: true,
       content: true,
       fontSize: true,
+      position: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -317,38 +359,124 @@ export async function createUserNote() {
   return note;
 }
 
+export async function createUserNoteFolder(name?: string) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const base = (name ?? "").trim() || "Nueva carpeta";
+  let folderName = base;
+  let suffix = 2;
+  // Evita choque de nombre por usuario
+  while (await prisma.noteFolder.findFirst({ where: { userId, name: folderName }, select: { id: true } })) {
+    folderName = `${base} ${suffix}`;
+    suffix += 1;
+  }
+
+  const maxPos = await prisma.noteFolder.aggregate({
+    where: { userId },
+    _max: { position: true },
+  });
+  const position = (maxPos._max.position ?? -1) + 1;
+
+  const folder = await prisma.noteFolder.create({
+    data: { userId, name: folderName, position },
+    select: { id: true, name: true, position: true, createdAt: true, updatedAt: true },
+  });
+
+  revalidatePath("/notes");
+  return folder;
+}
+
+export async function renameUserNoteFolder(folderId: string, name: string) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Nombre de carpeta requerido");
+
+  const exists = await prisma.noteFolder.findFirst({
+    where: { id: folderId, userId },
+    select: { id: true },
+  });
+  if (!exists) throw new Error("Carpeta no encontrada o no es tuya");
+
+  const duplicate = await prisma.noteFolder.findFirst({
+    where: { userId, name: trimmed, NOT: { id: folderId } },
+    select: { id: true },
+  });
+  if (duplicate) throw new Error("Ya existe una carpeta con ese nombre");
+
+  const folder = await prisma.noteFolder.update({
+    where: { id: folderId },
+    data: { name: trimmed },
+    select: { id: true, name: true, position: true, createdAt: true, updatedAt: true },
+  });
+
+  revalidatePath("/notes");
+  return folder;
+}
+
+export async function deleteUserNoteFolder(folderId: string) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const folder = await prisma.noteFolder.findFirst({
+    where: { id: folderId, userId },
+    select: { id: true },
+  });
+  if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
+
+  await prisma.noteFolder.delete({ where: { id: folderId } });
+  revalidatePath("/notes");
+}
+
 export async function updateUserNote(
   noteId: string,
-  patch: { title?: string; content?: string; fontSize?: number }
+  patch: { title?: string; content?: string; fontSize?: number; folderId?: string | null }
 ) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userNote = (prisma as any).userNote;
 
-  const exists = await userNote.findFirst({
+  const exists = await prisma.userNote.findFirst({
     where: { id: noteId, userId },
-    select: { id: true },
+    select: { id: true, folderId: true },
   });
   if (!exists) throw new Error("Nota no encontrada o no es tuya");
+
+  const nextFolderId = patch.folderId === undefined ? exists.folderId : patch.folderId;
+  if (nextFolderId) {
+    const folder = await prisma.noteFolder.findFirst({
+      where: { id: nextFolderId, userId },
+      select: { id: true },
+    });
+    if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
+  }
 
   const nextFontSize =
     patch.fontSize === undefined
       ? undefined
       : Math.min(40, Math.max(12, Math.round(patch.fontSize)));
 
-  const note = await userNote.update({
+  let nextPosition: number | undefined;
+  if (patch.folderId !== undefined && patch.folderId !== exists.folderId) {
+    nextPosition = await getNextNotePosition(userId, patch.folderId ?? null);
+  }
+
+  const note = await prisma.userNote.update({
     where: { id: noteId },
     data: {
       ...(patch.title !== undefined ? { title: patch.title.trim() || "Nueva nota" } : {}),
       ...(patch.content !== undefined ? { content: patch.content } : {}),
       ...(nextFontSize !== undefined ? { fontSize: nextFontSize } : {}),
+      ...(patch.folderId !== undefined ? { folderId: patch.folderId ?? null } : {}),
+      ...(nextPosition !== undefined ? { position: nextPosition } : {}),
     },
     select: {
       id: true,
+      folderId: true,
       title: true,
       content: true,
       fontSize: true,
+      position: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -361,16 +489,75 @@ export async function updateUserNote(
 export async function deleteUserNote(noteId: string) {
   const session = await getServerSession(authOptions);
   const userId = assertAuth(session);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userNote = (prisma as any).userNote;
 
-  const exists = await userNote.findFirst({
+  const exists = await prisma.userNote.findFirst({
     where: { id: noteId, userId },
     select: { id: true },
   });
   if (!exists) throw new Error("Nota no encontrada o no es tuya");
 
-  await userNote.delete({ where: { id: noteId } });
+  await prisma.userNote.delete({ where: { id: noteId } });
+  revalidatePath("/notes");
+}
+
+export async function moveUserNote(noteId: string, direction: "up" | "down") {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const note = await prisma.userNote.findFirst({
+    where: { id: noteId, userId },
+    select: { id: true, folderId: true, position: true },
+  });
+  if (!note) throw new Error("Nota no encontrada o no es tuya");
+
+  const siblings = await prisma.userNote.findMany({
+    where: { userId, folderId: note.folderId },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    select: { id: true, position: true },
+  });
+
+  const currentIndex = siblings.findIndex((item) => item.id === note.id);
+  if (currentIndex < 0) return;
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+  const target = siblings[targetIndex];
+
+  await prisma.$transaction([
+    prisma.userNote.update({ where: { id: note.id }, data: { position: target.position } }),
+    prisma.userNote.update({ where: { id: target.id }, data: { position: note.position } }),
+  ]);
+
+  revalidatePath("/notes");
+}
+
+export async function moveUserNoteToFolder(noteId: string, folderId: string | null) {
+  const session = await getServerSession(authOptions);
+  const userId = assertAuth(session);
+
+  const note = await prisma.userNote.findFirst({
+    where: { id: noteId, userId },
+    select: { id: true, folderId: true },
+  });
+  if (!note) throw new Error("Nota no encontrada o no es tuya");
+
+  const nextFolderId = folderId ?? null;
+  if (nextFolderId) {
+    const folder = await prisma.noteFolder.findFirst({
+      where: { id: nextFolderId, userId },
+      select: { id: true },
+    });
+    if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
+  }
+
+  if (note.folderId === nextFolderId) return;
+
+  const nextPosition = await getNextNotePosition(userId, nextFolderId);
+  await prisma.userNote.update({
+    where: { id: note.id },
+    data: { folderId: nextFolderId, position: nextPosition },
+  });
+
   revalidatePath("/notes");
 }
 

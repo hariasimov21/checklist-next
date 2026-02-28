@@ -39,6 +39,70 @@ body {
   color: #9ca3af;
 }
 
+.note-editor .note-image-line {
+  display: block;
+  margin: 0.5rem 0;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.note-editor .note-image-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.note-editor .note-inline-image {
+  display: block;
+  width: 100%;
+  max-width: min(100%, 720px);
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.note-editor .note-image-selected .note-inline-image {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.note-editor .note-image-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid #1d4ed8;
+  background: #ffffff;
+  display: none;
+}
+
+.note-editor .note-image-selected .note-image-handle {
+  display: block;
+}
+
+.note-editor .note-image-handle-nw {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.note-editor .note-image-handle-ne {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.note-editor .note-image-handle-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+.note-editor .note-image-handle-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
 @keyframes loadingProgress {
   0% {
     transform: translateX(-100%);
@@ -56,4 +120,13 @@ body {
 
 .loading-progress {
   animation: loadingProgress 1.1s ease-in-out infinite;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

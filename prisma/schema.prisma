@@ -27,6 +27,7 @@ model User {
   sessions  Session[]
   boards    Board[]
   cards     Card[]
+  noteFolders NoteFolder[]
   userNotes UserNote[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -79,15 +80,34 @@ model Note {
 model UserNote {
   id        String   @id @default(cuid())
   userId    String
+  folderId  String?
   title     String   @default("Nueva nota")
   content   String   @default("")
   fontSize  Int      @default(16)
+  position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
+  @@index([userId, folderId, position])
   @@index([userId, updatedAt])
+}
+
+model NoteFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes UserNote[]
+
+  @@unique([userId, name])
+  @@index([userId, position])
 }
 
 // -------- Auth.js (NextAuth v5) tablas recomendadas --------
