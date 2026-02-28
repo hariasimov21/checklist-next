@@ -166,6 +166,11 @@ export default function NotesWorkspace({
   const [editingFolderName, setEditingFolderName] = useState<string>("");
   const [previewImageSrc, setPreviewImageSrc] = useState<string | null>(null);
   const [previewZoom, setPreviewZoom] = useState<number>(1);
+  const [formatState, setFormatState] = useState<{ bold: boolean; italic: boolean; underline: boolean }>({
+    bold: false,
+    italic: false,
+    underline: false,
+  });
   const [draftTitle, setDraftTitle] = useState<string>(initialNotes[0]?.title ?? "");
   const [draftContent, setDraftContent] = useState<string>(initialNotes[0]?.content ?? "");
   const [draftFontSize, setDraftFontSize] = useState<number>(initialNotes[0]?.fontSize ?? 16);
@@ -512,12 +517,40 @@ export default function NotesWorkspace({
     });
   }, [notes]);
 
+  const refreshFormatState = useCallback(() => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) {
+      setFormatState({ bold: false, italic: false, underline: false });
+      return;
+    }
+
+    const anchorNode = selection.anchorNode;
+    if (!anchorNode || !editor.contains(anchorNode)) {
+      setFormatState({ bold: false, italic: false, underline: false });
+      return;
+    }
+
+    setFormatState({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+    });
+  }, []);
+
+  useEffect(() => {
+    const onSelectionChange = () => refreshFormatState();
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => document.removeEventListener("selectionchange", onSelectionChange);
+  }, [refreshFormatState]);
+
   const applyCommand = useCallback((command: string, value?: string) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
     document.execCommand(command, false, value);
     setDraftContent(editorRef.current.innerHTML);
-  }, []);
+    refreshFormatState();
+  }, [refreshFormatState]);
 
   const changeFontSize = useCallback((nextSize: number) => {
     const normalized = Math.min(40, Math.max(12, nextSize));
@@ -703,21 +736,27 @@ export default function NotesWorkspace({
                 <button
                   type="button"
                   onClick={() => applyCommand("bold")}
-                  className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
+                  className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 ${
+                    formatState.bold ? "bg-stone-200 dark:bg-neutral-700" : ""
+                  }`}
                 >
                   B
                 </button>
                 <button
                   type="button"
                   onClick={() => applyCommand("italic")}
-                  className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 italic"
+                  className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 italic ${
+                    formatState.italic ? "bg-stone-200 dark:bg-neutral-700" : ""
+                  }`}
                 >
                   I
                 </button>
                 <button
                   type="button"
                   onClick={() => applyCommand("underline")}
-                  className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 underline"
+                  className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 underline ${
+                    formatState.underline ? "bg-stone-200 dark:bg-neutral-700" : ""
+                  }`}
                 >
                   U
                 </button>
@@ -799,7 +838,10 @@ export default function NotesWorkspace({
                   ref={editorRef}
                   contentEditable
                   suppressContentEditableWarning
-                  onInput={(e) => setDraftContent(e.currentTarget.innerHTML)}
+                  onInput={(e) => {
+                    setDraftContent(e.currentTarget.innerHTML);
+                    refreshFormatState();
+                  }}
                   onBlur={saveCurrentNote}
                   onClick={(e) => {
                     const target = e.target as HTMLElement;
