@@ -68,16 +68,62 @@ function clearInlineFontSizes(root: HTMLElement) {
   fontTags.forEach((el) => el.removeAttribute("size"));
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+function loadImageFromObjectUrl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("No se pudo leer la imagen pegada"));
-    };
-    reader.onerror = () => reject(new Error("No se pudo leer la imagen pegada"));
-    reader.readAsDataURL(blob);
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("No se pudo procesar la imagen"));
+    image.src = url;
   });
+}
+
+async function normalizePastedImage(file: File): Promise<Blob> {
+  // GIF/SVG se dejan intactos para no romper animaciones o vectores.
+  if (file.type === "image/gif" || file.type === "image/svg+xml") {
+    return file;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImageFromObjectUrl(objectUrl);
+    const maxSide = 1600;
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const sourceHasAlpha = file.type === "image/png" || file.type === "image/webp";
+    const blob = await new Promise<Blob | null>((resolve) => {
+      if (sourceHasAlpha) {
+        canvas.toBlob((b) => resolve(b), "image/webp", 0.82);
+      } else {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.8);
+      }
+    });
+    return blob ?? file;
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function uploadNoteImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/notes/images/upload", { method: "POST", body: form });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json?.url) {
+    throw new Error(typeof json?.error === "string" ? json.error : "No se pudo subir la imagen");
+  }
+  return json.url as string;
 }
 
 function insertImageAsLine(editor: HTMLDivElement, src: string) {
@@ -885,11 +931,18 @@ export default function NotesWorkspace({
                       if (!imageFile || !editorRef.current) return;
 
                       try {
-                        const dataUrl = await blobToDataUrl(imageFile);
-                        insertImageAsLine(editorRef.current, dataUrl);
+                        const normalized = await normalizePastedImage(imageFile);
+                        const normalizedFile = new File(
+                          [normalized],
+                          `note-image-${Date.now()}.${(normalized.type.split("/")[1] || "bin").replace("jpeg", "jpg")}`,
+                          { type: normalized.type || imageFile.type || "application/octet-stream" }
+                        );
+                        const uploadedUrl = await uploadNoteImage(normalizedFile);
+                        insertImageAsLine(editorRef.current, uploadedUrl);
                         setDraftContent(editorRef.current.innerHTML);
+                        setSaveError(null);
                       } catch {
-                        // Si falla lectura, no insertamos nada.
+                        setSaveError("No se pudo subir imagen. Reintenta.");
                       }
                       return;
                     }
