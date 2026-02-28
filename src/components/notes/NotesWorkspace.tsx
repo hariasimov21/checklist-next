@@ -164,6 +164,8 @@ export default function NotesWorkspace({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(initialNotes[0]?.folderId ?? null);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState<string>("");
+  const [previewImageSrc, setPreviewImageSrc] = useState<string | null>(null);
+  const [previewZoom, setPreviewZoom] = useState<number>(1);
   const [draftTitle, setDraftTitle] = useState<string>(initialNotes[0]?.title ?? "");
   const [draftContent, setDraftContent] = useState<string>(initialNotes[0]?.content ?? "");
   const [draftFontSize, setDraftFontSize] = useState<number>(initialNotes[0]?.fontSize ?? 16);
@@ -277,6 +279,40 @@ export default function NotesWorkspace({
   useEffect(() => () => {
     clearSelectedImage();
   }, [clearSelectedImage]);
+
+  useEffect(() => {
+    if (!previewImageSrc) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPreviewImageSrc(null);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey)) return;
+
+      const key = e.key;
+      if (key === "+" || key === "=") {
+        e.preventDefault();
+        setPreviewZoom((prev) => Math.min(4, +(prev + 0.1).toFixed(2)));
+      } else if (key === "-" || key === "_") {
+        e.preventDefault();
+        setPreviewZoom((prev) => Math.max(0.3, +(prev - 0.1).toFixed(2)));
+      } else if (key === "0") {
+        e.preventDefault();
+        setPreviewZoom(1);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewImageSrc]);
+
+  useEffect(() => {
+    if (!previewImageSrc) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [previewImageSrc]);
 
   useEffect(() => {
     if (!visibleNotes.length) {
@@ -741,6 +777,14 @@ export default function NotesWorkspace({
                     const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
                     selectImage(wrapper);
                   }}
+                  onDoubleClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const image = target.closest("img.note-inline-image") as HTMLImageElement | null;
+                    if (!image?.src) return;
+                    e.preventDefault();
+                    setPreviewZoom(1);
+                    setPreviewImageSrc(image.src);
+                  }}
                   onMouseDown={(e) => {
                     const target = e.target as HTMLElement;
                     const handle = target.getAttribute("data-note-image-handle");
@@ -842,6 +886,46 @@ export default function NotesWorkspace({
           )}
         </section>
       </main>
+
+      {previewImageSrc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 p-4 flex items-center justify-center"
+          onClick={() => {
+            setPreviewImageSrc(null);
+            setPreviewZoom(1);
+          }}
+          onWheel={(e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.1 : -0.1;
+            setPreviewZoom((prev) => Math.max(0.3, Math.min(4, +(prev + delta).toFixed(2))));
+          }}
+        >
+          <div
+            className="relative w-full h-full overflow-auto hide-scrollbar"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewImageSrc(null);
+                setPreviewZoom(1);
+              }}
+              className="fixed top-6 right-6 z-10 size-9 rounded-full border border-white/50 bg-black/70 text-white text-lg leading-none"
+              aria-label="Cerrar vista previa"
+            >
+              ×
+            </button>
+            <div className="w-full h-full min-w-max min-h-max flex items-center justify-center p-6">
+              <img
+                src={previewImageSrc}
+                alt="Vista ampliada"
+                className="block max-w-none max-h-none rounded-lg"
+                style={{ transform: `scale(${previewZoom})`, transformOrigin: "center center" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
