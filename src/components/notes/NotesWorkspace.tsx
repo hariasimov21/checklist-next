@@ -175,6 +175,8 @@ export default function NotesWorkspace({
   const [draftContent, setDraftContent] = useState<string>(initialNotes[0]?.content ?? "");
   const [draftFontSize, setDraftFontSize] = useState<number>(initialNotes[0]?.fontSize ?? 16);
   const [isPending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const selected = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
@@ -342,36 +344,24 @@ export default function NotesWorkspace({
         fontSize: Math.min(40, Math.max(12, Math.round(fontSize))),
       };
 
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === noteId
-            ? {
-                ...n,
-                title: normalized.title,
-                content: normalized.content,
-                fontSize: normalized.fontSize,
-                updatedAt: new Date().toISOString(),
-              }
-            : n
-        )
-      );
-
-      try {
-        const saved = await updateUserNote(noteId, normalized);
-        setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...saved } : n)));
-      } catch {
-        // Si falla, mantenemos UI local y el siguiente guardado vuelve a intentar.
-      }
+      const saved = await updateUserNote(noteId, normalized);
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...saved } : n)));
     },
     []
   );
 
-  const saveCurrentNote = useCallback(() => {
-    if (!selectedId) return;
-    startTransition(async () => {
+  const saveCurrentNote = useCallback(async () => {
+    if (!selectedId || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
       await persistDraft(selectedId, draftTitle, draftContent, draftFontSize);
-    });
-  }, [selectedId, draftTitle, draftContent, draftFontSize, persistDraft]);
+    } catch {
+      setSaveError("No se pudo guardar. Reintenta.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [selectedId, draftTitle, draftContent, draftFontSize, persistDraft, isSaving]);
 
   useEffect(() => {
     if (!selectedId || !selected) return;
@@ -386,7 +376,7 @@ export default function NotesWorkspace({
     }
 
     const timer = window.setTimeout(() => {
-      saveCurrentNote();
+      void saveCurrentNote();
     }, 900);
 
     return () => window.clearTimeout(timer);
@@ -777,11 +767,11 @@ export default function NotesWorkspace({
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={saveCurrentNote}
+                    onClick={() => void saveCurrentNote()}
                     className="sm:hidden px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
-                    disabled={isPending}
+                    disabled={isPending || isSaving}
                   >
-                    Guardar
+                    {isSaving ? "Guardando..." : "Guardar"}
                   </button>
                   <button
                     type="button"
@@ -831,6 +821,9 @@ export default function NotesWorkspace({
                   className="w-max min-w-full whitespace-nowrap text-2xl sm:text-3xl font-semibold bg-transparent outline-none"
                 />
                 </div>
+                {saveError && (
+                  <p className="mt-2 text-xs text-red-500">{saveError}</p>
+                )}
               </div>
 
               <div className="flex-1 min-h-0 overflow-auto px-4 sm:px-6 py-5">
