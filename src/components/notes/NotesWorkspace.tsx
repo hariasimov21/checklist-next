@@ -368,6 +368,25 @@ export default function NotesWorkspace({
     });
   }, [selectedId, draftTitle, draftContent, draftFontSize, persistDraft]);
 
+  useEffect(() => {
+    if (!selectedId || !selected) return;
+
+    // Evita guardar cuando no hay cambios reales
+    if (
+      selected.title === draftTitle &&
+      selected.content === draftContent &&
+      selected.fontSize === draftFontSize
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      saveCurrentNote();
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedId, selected, draftTitle, draftContent, draftFontSize, saveCurrentNote]);
+
   const selectNote = useCallback(
     (note: PersonalNote) => {
       setSelectedFolderId(note.folderId ?? null);
@@ -719,6 +738,14 @@ export default function NotesWorkspace({
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={saveCurrentNote}
+                    className="sm:hidden px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
+                    disabled={isPending}
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => changeFontSize(draftFontSize - 1)}
                     className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
                   >
@@ -753,16 +780,17 @@ export default function NotesWorkspace({
                   <input
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        saveCurrentNote();
-                        (e.currentTarget as HTMLInputElement).blur();
-                      }
-                    }}
-                    placeholder="Título"
-                    className="w-max min-w-full whitespace-nowrap text-2xl sm:text-3xl font-semibold bg-transparent outline-none"
-                  />
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveCurrentNote();
+                      (e.currentTarget as HTMLInputElement).blur();
+                    }
+                  }}
+                  onBlur={saveCurrentNote}
+                  placeholder="Título"
+                  className="w-max min-w-full whitespace-nowrap text-2xl sm:text-3xl font-semibold bg-transparent outline-none"
+                />
                 </div>
               </div>
 
@@ -772,6 +800,7 @@ export default function NotesWorkspace({
                   contentEditable
                   suppressContentEditableWarning
                   onInput={(e) => setDraftContent(e.currentTarget.innerHTML)}
+                  onBlur={saveCurrentNote}
                   onClick={(e) => {
                     const target = e.target as HTMLElement;
                     const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
@@ -919,7 +948,7 @@ export default function NotesWorkspace({
               <img
                 src={previewImageSrc}
                 alt="Vista ampliada"
-                className="block max-w-none max-h-none rounded-lg"
+                className="block rounded-lg object-contain max-w-[92vw] max-h-[82vh] sm:max-w-none sm:max-h-none"
                 style={{ transform: `scale(${previewZoom})`, transformOrigin: "center center" }}
               />
             </div>
