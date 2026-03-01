@@ -3,12 +3,48 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function assertAuth(session: any) {
   if (!session?.user?.id) throw new Error("No autenticado");
   return session.user.id as string;
+}
+
+const NOTE_IMAGES_BUCKET = "Cards";
+
+function extractNoteImagePathsFromHtml(html: string, userId: string) {
+  const found = new Set<string>();
+  const re = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const expectedPrefix = `notes/${userId}/`;
+
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    const rawSrc = match[1];
+    if (!rawSrc) continue;
+
+    try {
+      // Soporta src relativos y absolutos.
+      const url = new URL(rawSrc, "http://local");
+      if (!url.pathname.endsWith("/api/notes/images")) continue;
+      const path = url.searchParams.get("path");
+      if (!path || !path.startsWith(expectedPrefix)) continue;
+      found.add(path);
+    } catch {
+      // Ignora src no parseables.
+    }
+  }
+
+  return [...found];
+}
+
+async function removeNoteImages(paths: string[]) {
+  if (!paths.length) return;
+  const { error } = await supabaseAdmin.storage.from(NOTE_IMAGES_BUCKET).remove(paths);
+  if (error) {
+    console.error("[note-images-remove] supabase error", error);
+  }
 }
 
 /* ===========================
@@ -438,7 +474,7 @@ export async function updateUserNote(
 
   const exists = await prisma.userNote.findFirst({
     where: { id: noteId, userId },
-    select: { id: true, folderId: true },
+    select: { id: true, folderId: true, content: true },
   });
   if (!exists) throw new Error("Nota no encontrada o no es tuya");
 
@@ -482,6 +518,14 @@ export async function updateUserNote(
     },
   });
 
+  if (patch.content !== undefined) {
+    const beforePaths = extractNoteImagePathsFromHtml(exists.content ?? "", userId);
+    const afterPaths = extractNoteImagePathsFromHtml(patch.content ?? "", userId);
+    const stillUsed = new Set(afterPaths);
+    const toRemove = beforePaths.filter((p) => !stillUsed.has(p));
+    await removeNoteImages(toRemove);
+  }
+
   revalidatePath("/notes");
   return note;
 }
@@ -492,11 +536,13 @@ export async function deleteUserNote(noteId: string) {
 
   const exists = await prisma.userNote.findFirst({
     where: { id: noteId, userId },
-    select: { id: true },
+    select: { id: true, content: true },
   });
   if (!exists) throw new Error("Nota no encontrada o no es tuya");
 
   await prisma.userNote.delete({ where: { id: noteId } });
+  const paths = extractNoteImagePathsFromHtml(exists.content ?? "", userId);
+  await removeNoteImages(paths);
   revalidatePath("/notes");
 }
 
