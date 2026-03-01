@@ -55,7 +55,7 @@ body {
 .note-editor .note-inline-image {
   display: block;
   width: 100%;
-  max-width: min(100%, 720px);
+  max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
 }

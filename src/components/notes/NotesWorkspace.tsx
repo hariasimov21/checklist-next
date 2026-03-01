@@ -600,7 +600,7 @@ export default function NotesWorkspace({
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
       <header className="sticky top-0 z-20 border-b border-stone-200 dark:border-neutral-700 bg-stone-100/90 dark:bg-neutral-900/90 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-2">
+        <div className="w-full px-3 lg:px-6 py-3 flex items-center gap-2">
           <Link
             href="/"
             className="px-3 py-2 rounded-xl border border-stone-300 dark:border-neutral-700 bg-white dark:bg-neutral-800"
@@ -626,7 +626,7 @@ export default function NotesWorkspace({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-3 py-4 grid grid-cols-1 lg:grid-cols-[150px_240px_minmax(0,1fr)] gap-4 h-auto lg:h-[calc(100vh-76px)]">
+      <main className="w-full px-3 lg:px-6 py-4 grid grid-cols-1 lg:grid-cols-[240px_360px_minmax(0,1fr)] xl:grid-cols-[280px_420px_minmax(0,1fr)] gap-4 h-auto lg:h-[calc(100vh-76px)]">
         <aside className="rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex flex-col min-h-[220px] lg:min-h-0">
           <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 font-semibold flex items-center justify-between">
             <span>Carpetas</span>
