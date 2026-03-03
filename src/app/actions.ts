@@ -5,6 +5,7 @@ import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
+import DOMPurify from "isomorphic-dompurify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function assertAuth(session: any) {
@@ -13,6 +14,11 @@ function assertAuth(session: any) {
 }
 
 const NOTE_IMAGES_BUCKET = "Cards";
+
+const purifyConfig = {
+  ALLOWED_TAGS: ["b", "i", "u", "br", "div", "span", "img", "font"],
+  ALLOWED_ATTR: ["src", "alt", "style", "class", "contenteditable", "data-note-image-wrapper", "data-note-image-handle", "width"],
+};
 
 function extractNoteImagePathsFromHtml(html: string, userId: string) {
   const found = new Set<string>();
@@ -492,6 +498,10 @@ export async function updateUserNote(
       ? undefined
       : Math.min(40, Math.max(12, Math.round(patch.fontSize)));
 
+  const sanitizedContent = patch.content !== undefined 
+    ? DOMPurify.sanitize(patch.content, purifyConfig) as string
+    : undefined;
+
   let nextPosition: number | undefined;
   if (patch.folderId !== undefined && patch.folderId !== exists.folderId) {
     nextPosition = await getNextNotePosition(userId, patch.folderId ?? null);
@@ -501,7 +511,7 @@ export async function updateUserNote(
     where: { id: noteId },
     data: {
       ...(patch.title !== undefined ? { title: patch.title.trim() || "Nueva nota" } : {}),
-      ...(patch.content !== undefined ? { content: patch.content } : {}),
+      ...(sanitizedContent !== undefined ? { content: sanitizedContent } : {}),
       ...(nextFontSize !== undefined ? { fontSize: nextFontSize } : {}),
       ...(patch.folderId !== undefined ? { folderId: patch.folderId ?? null } : {}),
       ...(nextPosition !== undefined ? { position: nextPosition } : {}),
