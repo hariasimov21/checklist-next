@@ -432,9 +432,13 @@ export default function NotesWorkspace({
     try {
       await persistDraft(selectedId, draftTitle, draftContent, draftFontSize);
       lastFailedSaveKeyRef.current = null;
-    } catch {
+    } catch (error) {
       lastFailedSaveKeyRef.current = saveKey;
-      setSaveError("No se pudo guardar. Reintenta.");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "No se pudo guardar. Reintenta.";
+      setSaveError(message);
     } finally {
       setIsSaving(false);
     }
