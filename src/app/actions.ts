@@ -363,8 +363,6 @@ export async function createUserNote(folderId?: string | null) {
       updatedAt: true,
     },
   });
-
-  revalidatePath("/notes");
   return note;
 }
 
@@ -391,8 +389,6 @@ export async function createUserNoteFolder(name?: string) {
     data: { userId, name: folderName, position },
     select: { id: true, name: true, position: true, createdAt: true, updatedAt: true },
   });
-
-  revalidatePath("/notes");
   return folder;
 }
 
@@ -419,8 +415,6 @@ export async function renameUserNoteFolder(folderId: string, name: string) {
     data: { name: trimmed },
     select: { id: true, name: true, position: true, createdAt: true, updatedAt: true },
   });
-
-  revalidatePath("/notes");
   return folder;
 }
 
@@ -435,7 +429,6 @@ export async function deleteUserNoteFolder(folderId: string) {
   if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
 
   await prisma.noteFolder.delete({ where: { id: folderId } });
-  revalidatePath("/notes");
 }
 
 export async function updateUserNote(
@@ -496,8 +489,6 @@ export async function updateUserNote(
   });
 
   // Intencional: no limpiar imágenes de Supabase al editar contenido.
-
-  revalidatePath("/notes");
   return note;
 }
 
@@ -513,7 +504,6 @@ export async function deleteUserNote(noteId: string) {
 
   await prisma.userNote.delete({ where: { id: noteId } });
   // Intencional: no limpiar imágenes de Supabase al eliminar nota.
-  revalidatePath("/notes");
 }
 
 export async function moveUserNote(noteId: string, direction: "up" | "down") {
@@ -543,8 +533,6 @@ export async function moveUserNote(noteId: string, direction: "up" | "down") {
     prisma.userNote.update({ where: { id: note.id }, data: { position: target.position } }),
     prisma.userNote.update({ where: { id: target.id }, data: { position: note.position } }),
   ]);
-
-  revalidatePath("/notes");
 }
 
 export async function moveUserNoteToFolder(noteId: string, folderId: string | null) {
@@ -573,8 +561,6 @@ export async function moveUserNoteToFolder(noteId: string, folderId: string | nu
     where: { id: note.id },
     data: { folderId: nextFolderId, position: nextPosition },
   });
-
-  revalidatePath("/notes");
 }
 
 /* ===========================
