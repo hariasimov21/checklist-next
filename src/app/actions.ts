@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import DOMPurify from "isomorphic-dompurify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function assertAuth(session: any) {
@@ -12,10 +11,13 @@ function assertAuth(session: any) {
   return session.user.id as string;
 }
 
-const purifyConfig = {
-  ALLOWED_TAGS: ["b", "i", "u", "br", "div", "span", "img", "font"],
-  ALLOWED_ATTR: ["src", "alt", "style", "class", "contenteditable", "data-note-image-wrapper", "data-note-image-handle", "width"],
-};
+function sanitizeNoteHtml(input: string) {
+  return input
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "");
+}
 
 // Intencional: NO borrar imágenes del bucket aunque se eliminen del HTML de la nota
 // o se elimine la nota completa. Se conservan para evitar referencias rotas por borrados previos.
@@ -465,11 +467,7 @@ export async function updateUserNote(
 
     let sanitizedContent: string | undefined;
     if (patch.content !== undefined) {
-      try {
-        sanitizedContent = DOMPurify.sanitize(patch.content, purifyConfig) as string;
-      } catch {
-        sanitizedContent = patch.content;
-      }
+      sanitizedContent = sanitizeNoteHtml(patch.content);
     }
 
     let nextPosition: number | undefined;
@@ -502,7 +500,7 @@ export async function updateUserNote(
     return note;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error interno al guardar nota";
-    console.error("[updateUserNote] save failed", { noteId, message });
+    console.error("[updateUserNote] save failed", { noteId, message, error });
     return { error: message || "No se pudo guardar la nota" };
   }
 }
