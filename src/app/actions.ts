@@ -435,61 +435,76 @@ export async function updateUserNote(
   noteId: string,
   patch: { title?: string; content?: string; fontSize?: number; folderId?: string | null }
 ) {
-  const session = await getServerSession(authOptions);
-  const userId = assertAuth(session);
+  try {
+    const session = await getServerSession(authOptions);
+    const userId = assertAuth(session);
 
-  const exists = await prisma.userNote.findFirst({
-    where: { id: noteId, userId },
-    select: { id: true, folderId: true, content: true },
-  });
-  if (!exists) throw new Error("Nota no encontrada o no es tuya");
-
-  const nextFolderId = patch.folderId === undefined ? exists.folderId : patch.folderId;
-  if (nextFolderId) {
-    const folder = await prisma.noteFolder.findFirst({
-      where: { id: nextFolderId, userId },
-      select: { id: true },
+    const exists = await prisma.userNote.findFirst({
+      where: { id: noteId, userId },
+      select: { id: true, folderId: true },
     });
-    if (!folder) throw new Error("Carpeta no encontrada o no es tuya");
+    if (!exists) {
+      return { error: "Nota no encontrada o no es tuya" };
+    }
+
+    const nextFolderId = patch.folderId === undefined ? exists.folderId : patch.folderId;
+    if (nextFolderId) {
+      const folder = await prisma.noteFolder.findFirst({
+        where: { id: nextFolderId, userId },
+        select: { id: true },
+      });
+      if (!folder) {
+        return { error: "Carpeta no encontrada o no es tuya" };
+      }
+    }
+
+    const nextFontSize =
+      patch.fontSize === undefined
+        ? undefined
+        : Math.min(40, Math.max(12, Math.round(patch.fontSize)));
+
+    let sanitizedContent: string | undefined;
+    if (patch.content !== undefined) {
+      try {
+        sanitizedContent = DOMPurify.sanitize(patch.content, purifyConfig) as string;
+      } catch {
+        sanitizedContent = patch.content;
+      }
+    }
+
+    let nextPosition: number | undefined;
+    if (patch.folderId !== undefined && patch.folderId !== exists.folderId) {
+      nextPosition = await getNextNotePosition(userId, patch.folderId ?? null);
+    }
+
+    const note = await prisma.userNote.update({
+      where: { id: noteId },
+      data: {
+        ...(patch.title !== undefined ? { title: patch.title.trim() || "Nueva nota" } : {}),
+        ...(sanitizedContent !== undefined ? { content: sanitizedContent } : {}),
+        ...(nextFontSize !== undefined ? { fontSize: nextFontSize } : {}),
+        ...(patch.folderId !== undefined ? { folderId: patch.folderId ?? null } : {}),
+        ...(nextPosition !== undefined ? { position: nextPosition } : {}),
+      },
+      select: {
+        id: true,
+        folderId: true,
+        title: true,
+        content: true,
+        fontSize: true,
+        position: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Intencional: no limpiar imágenes de Supabase al editar contenido.
+    return note;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error interno al guardar nota";
+    console.error("[updateUserNote] save failed", { noteId, message });
+    return { error: message || "No se pudo guardar la nota" };
   }
-
-  const nextFontSize =
-    patch.fontSize === undefined
-      ? undefined
-      : Math.min(40, Math.max(12, Math.round(patch.fontSize)));
-
-  const sanitizedContent = patch.content !== undefined 
-    ? DOMPurify.sanitize(patch.content, purifyConfig) as string
-    : undefined;
-
-  let nextPosition: number | undefined;
-  if (patch.folderId !== undefined && patch.folderId !== exists.folderId) {
-    nextPosition = await getNextNotePosition(userId, patch.folderId ?? null);
-  }
-
-  const note = await prisma.userNote.update({
-    where: { id: noteId },
-    data: {
-      ...(patch.title !== undefined ? { title: patch.title.trim() || "Nueva nota" } : {}),
-      ...(sanitizedContent !== undefined ? { content: sanitizedContent } : {}),
-      ...(nextFontSize !== undefined ? { fontSize: nextFontSize } : {}),
-      ...(patch.folderId !== undefined ? { folderId: patch.folderId ?? null } : {}),
-      ...(nextPosition !== undefined ? { position: nextPosition } : {}),
-    },
-    select: {
-      id: true,
-      folderId: true,
-      title: true,
-      content: true,
-      fontSize: true,
-      position: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
-
-  // Intencional: no limpiar imágenes de Supabase al editar contenido.
-  return note;
 }
 
 export async function deleteUserNote(noteId: string) {

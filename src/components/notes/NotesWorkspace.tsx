@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { ModeToggle } from "@/components/ui/toogle";
@@ -225,6 +225,7 @@ export default function NotesWorkspace({
   const [isPending, startTransition] = useTransition();
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const lastFailedSaveKeyRef = useRef<string | null>(null);
 
   const selected = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
@@ -413,18 +414,26 @@ export default function NotesWorkspace({
       };
 
       const saved = await updateUserNote(noteId, normalized);
+      if ("error" in saved) {
+        throw new Error(saved.error || "No se pudo guardar la nota");
+      }
       setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...saved } : n)));
     },
     []
   );
 
-  const saveCurrentNote = useCallback(async () => {
+  const saveCurrentNote = useCallback(async (force = false) => {
     if (!selectedId || isSaving) return;
+    const saveKey = JSON.stringify([selectedId, draftTitle, draftContent, draftFontSize]);
+    if (!force && lastFailedSaveKeyRef.current === saveKey) return;
+
     setIsSaving(true);
     setSaveError(null);
     try {
       await persistDraft(selectedId, draftTitle, draftContent, draftFontSize);
+      lastFailedSaveKeyRef.current = null;
     } catch {
+      lastFailedSaveKeyRef.current = saveKey;
       setSaveError("No se pudo guardar. Reintenta.");
     } finally {
       setIsSaving(false);
@@ -795,7 +804,7 @@ export default function NotesWorkspace({
               <div className="font-semibold truncate">{selected?.title || "Nota"}</div>
               <button
                 type="button"
-                onClick={() => void saveCurrentNote()}
+                onClick={() => void saveCurrentNote(true)}
                 className="ml-auto px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
                 disabled={isPending || isSaving}
               >
@@ -861,11 +870,11 @@ export default function NotesWorkspace({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        saveCurrentNote();
+                        void saveCurrentNote(true);
                         (e.currentTarget as HTMLInputElement).blur();
                       }
                     }}
-                    onBlur={saveCurrentNote}
+                    onBlur={() => void saveCurrentNote()}
                     placeholder="Título"
                     className="w-full text-2xl font-semibold bg-transparent outline-none"
                   />
@@ -883,7 +892,7 @@ export default function NotesWorkspace({
                       setDraftContent(e.currentTarget.innerHTML);
                       refreshFormatState();
                     }}
-                    onBlur={saveCurrentNote}
+                    onBlur={() => void saveCurrentNote()}
                     onClick={(e) => {
                       const target = e.target as HTMLElement;
                       const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
@@ -985,7 +994,7 @@ export default function NotesWorkspace({
                       if (e.key !== "Enter") return;
                       if (e.metaKey || e.ctrlKey) {
                         e.preventDefault();
-                        saveCurrentNote();
+                        void saveCurrentNote(true);
                         return;
                       }
 
@@ -1193,7 +1202,7 @@ export default function NotesWorkspace({
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => void saveCurrentNote()}
+                    onClick={() => void saveCurrentNote(true)}
                     className="sm:hidden px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
                     disabled={isPending || isSaving}
                   >
@@ -1238,11 +1247,11 @@ export default function NotesWorkspace({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      saveCurrentNote();
+                      void saveCurrentNote(true);
                       (e.currentTarget as HTMLInputElement).blur();
                     }
                   }}
-                  onBlur={saveCurrentNote}
+                  onBlur={() => void saveCurrentNote()}
                   placeholder="Título"
                   className="w-max min-w-full whitespace-nowrap text-2xl sm:text-3xl font-semibold bg-transparent outline-none"
                 />
@@ -1261,7 +1270,7 @@ export default function NotesWorkspace({
                     setDraftContent(e.currentTarget.innerHTML);
                     refreshFormatState();
                   }}
-                  onBlur={saveCurrentNote}
+                  onBlur={() => void saveCurrentNote()}
                   onClick={(e) => {
                     const target = e.target as HTMLElement;
                     const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
@@ -1364,7 +1373,7 @@ export default function NotesWorkspace({
 
                     if (e.metaKey || e.ctrlKey) {
                       e.preventDefault();
-                      saveCurrentNote();
+                      void saveCurrentNote(true);
                       return;
                     }
 
