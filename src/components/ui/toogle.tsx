@@ -24,6 +24,8 @@ export function ModeToggle() {
 
   const isDark = resolvedTheme === "dark";
 
+  ///comentario
+
   return (
     <button
       onClick={() => setTheme(isDark ? "light" : "dark")}
