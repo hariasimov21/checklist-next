@@ -220,6 +220,8 @@ export default function NotesWorkspace({
   const [draftTitle, setDraftTitle] = useState<string>(initialNotes[0]?.title ?? "");
   const [draftContent, setDraftContent] = useState<string>(initialNotes[0]?.content ?? "");
   const [draftFontSize, setDraftFontSize] = useState<number>(initialNotes[0]?.fontSize ?? 16);
+  const [mobileView, setMobileView] = useState<"folders" | "notes" | "editor">("folders");
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -241,6 +243,11 @@ export default function NotesWorkspace({
     });
     return countMap;
   }, [notes]);
+
+  const selectedFolderName = useMemo(() => {
+    if (selectedFolderId === null) return "Sin carpeta";
+    return folders.find((f) => f.id === selectedFolderId)?.name ?? "Carpeta";
+  }, [folders, selectedFolderId]);
 
   const editorRef = React.useRef<HTMLDivElement | null>(null);
   const titleScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -295,6 +302,21 @@ export default function NotesWorkspace({
     if (!editorRef.current) return;
     editorRef.current.innerHTML = initialContentRef.current;
   }, []);
+
+  // En móvil, el editor puede montarse después de seleccionar una nota.
+  // Rehidratamos el contenido al cambiar de nota/vista para no mostrar el placeholder vacío.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!selected) {
+      editor.innerHTML = "";
+      return;
+    }
+    const nextHtml = selected.content ?? "";
+    if (editor.innerHTML !== nextHtml) {
+      editor.innerHTML = nextHtml;
+    }
+  }, [selected?.id, selected?.content, mobileView, isMobileLayout, selected]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -441,6 +463,16 @@ export default function NotesWorkspace({
     setSelectedFolderId(folderId);
   }, []);
 
+  const openMobileFolder = useCallback((folderId: string | null) => {
+    setSelectedFolderId(folderId);
+    setMobileView("notes");
+  }, []);
+
+  const openMobileNote = useCallback((note: PersonalNote) => {
+    selectNote(note);
+    setMobileView("editor");
+  }, [selectNote]);
+
   const handleCreateFolder = useCallback(() => {
     startTransition(async () => {
       try {
@@ -511,6 +543,17 @@ export default function NotesWorkspace({
       setSelectedId(created.id);
       setSelectedFolderId(created.folderId ?? null);
       loadDraft(created);
+    });
+  }, [selectedFolderId, loadDraft]);
+
+  const handleCreateFromNotesMobile = useCallback(() => {
+    startTransition(async () => {
+      const created = await createUserNote(selectedFolderId);
+      setNotes((prev) => [...prev, created]);
+      setSelectedId(created.id);
+      setSelectedFolderId(created.folderId ?? null);
+      loadDraft(created);
+      setMobileView("editor");
     });
   }, [selectedFolderId, loadDraft]);
 
@@ -597,6 +640,20 @@ export default function NotesWorkspace({
     }
   }, []);
 
+  useEffect(() => {
+    if (mobileView === "editor" && !selected) {
+      setMobileView("notes");
+    }
+  }, [mobileView, selected]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setIsMobileLayout(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
       <header className="sticky top-0 z-20 border-b border-stone-200 dark:border-neutral-700 bg-stone-100/90 dark:bg-neutral-900/90 backdrop-blur">
@@ -626,6 +683,329 @@ export default function NotesWorkspace({
         </div>
       </header>
 
+      {isMobileLayout ? (
+      <main className="w-full px-3 py-4 h-[calc(100vh-76px)]">
+        {mobileView === "folders" && (
+          <section className="h-full rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Carpetas</h2>
+              <button
+                type="button"
+                onClick={handleCreateFolder}
+                className="px-3 py-1 rounded-lg border border-stone-300 dark:border-neutral-700 text-sm"
+              >
+                + Carpeta
+              </button>
+            </div>
+            <div className="overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => openMobileFolder(null)}
+                className="w-full text-left px-4 py-3 border-b border-stone-100 dark:border-neutral-700 hover:bg-stone-50 dark:hover:bg-neutral-700/60"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">Sin carpeta</span>
+                  <span className="text-sm opacity-70">{folderCountById.get(null) ?? 0} ›</span>
+                </div>
+              </button>
+              {folders.map((folder) => (
+                <div key={folder.id} className="border-b border-stone-100 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={() => openMobileFolder(folder.id)}
+                    className="w-full text-left px-4 py-3 hover:bg-stone-50 dark:hover:bg-neutral-700/60"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium truncate">{folder.name}</span>
+                      <span className="text-sm opacity-70">{folderCountById.get(folder.id) ?? 0} ›</span>
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {mobileView === "notes" && (
+          <section className="h-full rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileView("folders")}
+                className="px-2 py-1 rounded-lg border border-stone-300 dark:border-neutral-700"
+              >
+                ←
+              </button>
+              <h2 className="font-semibold truncate">{selectedFolderName}</h2>
+              <button
+                type="button"
+                title="Crear nota"
+                onClick={handleCreateFromNotesMobile}
+                className="ml-auto px-3 py-1 rounded-lg border border-stone-300 dark:border-neutral-700 text-sm"
+                disabled={isPending}
+              >
+                + Nota
+              </button>
+            </div>
+
+            <div className="overflow-y-auto">
+              {visibleNotes.map((note) => {
+                const preview = stripHtml(note.content).slice(0, 80) || "Sin contenido";
+                return (
+                  <div key={note.id} className="border-b border-stone-100 dark:border-neutral-700 px-3 py-2">
+                    <div className="flex items-start gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openMobileNote(note)}
+                        className="w-full text-left rounded-md px-1 py-1 hover:bg-stone-50 dark:hover:bg-neutral-700/60"
+                      >
+                        <div className="font-medium truncate">{note.title || "Nueva nota"}</div>
+                        <div className="text-xs text-stone-500 dark:text-neutral-400 truncate mt-0.5">{preview}</div>
+                        <div className="mt-1 text-[11px] text-stone-400 dark:text-neutral-500 truncate">
+                          {formatDate(note.updatedAt)}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        title="Eliminar nota"
+                        onClick={() => handleDeleteNote(note.id)}
+                        className="mt-10 shrink-0 px-2 py-0.5 rounded-md border border-stone-300 dark:border-neutral-700 text-sm leading-none hover:text-red-600"
+                        disabled={isPending}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {mobileView === "editor" && (
+          <section className="h-full rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileView("notes")}
+                className="px-2 py-1 rounded-lg border border-stone-300 dark:border-neutral-700"
+              >
+                ←
+              </button>
+              <div className="font-semibold truncate">{selected?.title || "Nota"}</div>
+              <button
+                type="button"
+                onClick={() => void saveCurrentNote()}
+                className="ml-auto px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
+                disabled={isPending || isSaving}
+              >
+                {isSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+
+            {!selected ? (
+              <div className="m-auto text-stone-500 dark:text-neutral-400">Selecciona una nota.</div>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => applyCommand("bold")}
+                    className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 ${
+                      formatState.bold ? "bg-stone-200 dark:bg-neutral-700" : ""
+                    }`}
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyCommand("italic")}
+                    className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 italic ${
+                      formatState.italic ? "bg-stone-200 dark:bg-neutral-700" : ""
+                    }`}
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyCommand("underline")}
+                    className={`px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700 underline ${
+                      formatState.underline ? "bg-stone-200 dark:bg-neutral-700" : ""
+                    }`}
+                  >
+                    U
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeFontSize(draftFontSize - 1)}
+                    className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
+                  >
+                    A-
+                  </button>
+                  <span className="text-sm text-stone-500 dark:text-neutral-300 min-w-10 text-center">
+                    {draftFontSize}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => changeFontSize(draftFontSize + 1)}
+                    className="px-3 py-1.5 rounded-lg border border-stone-300 dark:border-neutral-700"
+                  >
+                    A+
+                  </button>
+                </div>
+
+                <div className="px-4 py-4 border-b border-stone-200 dark:border-neutral-700">
+                  <input
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        saveCurrentNote();
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
+                    onBlur={saveCurrentNote}
+                    placeholder="Título"
+                    className="w-full text-2xl font-semibold bg-transparent outline-none"
+                  />
+                  {saveError && (
+                    <p className="mt-2 text-xs text-red-500">{saveError}</p>
+                  )}
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-auto px-4 py-5">
+                  <div
+                    ref={editorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) => {
+                      setDraftContent(e.currentTarget.innerHTML);
+                      refreshFormatState();
+                    }}
+                    onBlur={saveCurrentNote}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
+                      selectImage(wrapper);
+                    }}
+                    onDoubleClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      const image = target.closest("img.note-inline-image") as HTMLImageElement | null;
+                      if (!image?.src) return;
+                      e.preventDefault();
+                      setPreviewZoom(1);
+                      setPreviewImageSrc(image.src);
+                    }}
+                    onMouseDown={(e) => {
+                      const target = e.target as HTMLElement;
+                      const handle = target.getAttribute("data-note-image-handle");
+                      if (!handle) return;
+
+                      const wrapper = target.closest("[data-note-image-wrapper]") as HTMLElement | null;
+                      const editor = editorRef.current;
+                      if (!wrapper || !editor) return;
+
+                      e.preventDefault();
+                      e.stopPropagation();
+                      selectImage(wrapper);
+
+                      const wrapperRect = wrapper.getBoundingClientRect();
+                      const editorRect = editor.getBoundingClientRect();
+                      dragStateRef.current = {
+                        wrapper,
+                        handle,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        startWidth: wrapperRect.width,
+                        maxWidth: Math.max(180, editorRect.width - 24),
+                      };
+
+                      document.body.style.userSelect = "none";
+                    }}
+                    onPaste={async (e) => {
+                      const items = Array.from(e.clipboardData.items);
+                      const imageItem = items.find((item) => item.type.startsWith("image/"));
+
+                      if (imageItem) {
+                        e.preventDefault();
+                        const imageFile = imageItem.getAsFile();
+                        if (!imageFile || !editorRef.current) return;
+
+                        try {
+                          const normalized = await normalizePastedImage(imageFile);
+                          const normalizedFile = new File(
+                            [normalized],
+                            `note-image-${Date.now()}.${(normalized.type.split("/")[1] || "bin").replace("jpeg", "jpg")}`,
+                            { type: normalized.type || imageFile.type || "application/octet-stream" }
+                          );
+                          const uploadedUrl = await uploadNoteImage(normalizedFile);
+                          insertImageAsLine(editorRef.current, uploadedUrl);
+                          setDraftContent(editorRef.current.innerHTML);
+                          setSaveError(null);
+                        } catch {
+                          setSaveError("No se pudo subir imagen. Reintenta.");
+                        }
+                        return;
+                      }
+
+                      e.preventDefault();
+                      const text = e.clipboardData.getData("text/plain");
+                      document.execCommand("insertText", false, text);
+                      if (editorRef.current) {
+                        setDraftContent(editorRef.current.innerHTML);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      const selectedImage = selectedImageRef.current;
+                      if (selectedImage && (e.key === "Backspace" || e.key === "Delete")) {
+                        e.preventDefault();
+                        const line = selectedImage.closest(".note-image-line");
+                        line?.remove();
+                        clearSelectedImage();
+                        if (editorRef.current) {
+                          setDraftContent(editorRef.current.innerHTML);
+                        }
+                        return;
+                      }
+
+                      if (e.key === "Tab") {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                          document.execCommand("outdent");
+                        } else {
+                          document.execCommand("insertText", false, "    ");
+                        }
+                        if (editorRef.current) {
+                          setDraftContent(editorRef.current.innerHTML);
+                        }
+                        return;
+                      }
+
+                      if (e.key !== "Enter") return;
+                      if (e.metaKey || e.ctrlKey) {
+                        e.preventDefault();
+                        saveCurrentNote();
+                        return;
+                      }
+
+                      e.preventDefault();
+                      document.execCommand("insertLineBreak");
+                      if (editorRef.current) {
+                        setDraftContent(editorRef.current.innerHTML);
+                      }
+                    }}
+                    style={{ fontSize: `${draftFontSize}px` }}
+                    className="note-editor min-h-[52vh] outline-none leading-relaxed"
+                    data-placeholder="Escribe tu nota aquí..."
+                  />
+                </div>
+              </>
+            )}
+          </section>
+        )}
+      </main>
+      ) : (
       <main className="w-full px-3 lg:px-6 py-4 grid grid-cols-1 lg:grid-cols-[240px_360px_minmax(0,1fr)] xl:grid-cols-[280px_420px_minmax(0,1fr)] gap-4 h-auto lg:h-[calc(100vh-76px)]">
         <aside className="rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex flex-col min-h-[220px] lg:min-h-0">
           <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 font-semibold flex items-center justify-between">
@@ -1003,6 +1383,7 @@ export default function NotesWorkspace({
           )}
         </section>
       </main>
+      )}
 
       {previewImageSrc && (
         <div
