@@ -26,46 +26,56 @@ export default function SignupPage() {
                 </div>
 
                 <div className="flex items-center justify-center p-6">
-                    <form
-                        onSubmit={async (e) => {
-                            e.preventDefault();
-                            const res = await fetch("/api/auth/signup", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ email, password, name }),
-                            });
-                            if (res.ok) window.location.href = "/login";
-                            else alert("No se pudo crear la cuenta");
-                        }}
-                        className="w-full max-w-sm rounded-2xl border border-stone-300 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-                    >
-                        <h1 className="mb-4 text-2xl font-semibold text-stone-900 dark:text-neutral-100">Crear cuenta</h1>
-                        <input
-                            className="mb-2 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            placeholder="nombre (opcional)"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                    <div className="w-full max-w-sm">
+                        <Image
+                            src="/logo-inicio.png"
+                            alt="Logo de la aplicación"
+                            width={640}
+                            height={260}
+                            className="mb-4 h-auto w-full -translate-x-3 object-contain md:-translate-x-4"
+                            sizes="(min-width: 768px) 28rem, 100vw"
                         />
-                        <input
-                            className="mb-2 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            placeholder="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <input
-                            className="mb-4 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                            placeholder="contraseña (min 6)"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <button className="w-full rounded-lg bg-black px-3 py-2 text-white dark:bg-white dark:text-black">
-                            Registrarme
-                        </button>
-                        <Link href="/login" className="mt-2 block text-center text-sm underline">
-                            Ya tengo cuenta
-                        </Link>
-                    </form>
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                const res = await fetch("/api/auth/signup", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ email, password, name }),
+                                });
+                                if (res.ok) window.location.href = "/login";
+                                else alert("No se pudo crear la cuenta");
+                            }}
+                            className="w-full rounded-2xl border border-stone-300 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                        >
+                            <h1 className="mb-4 text-2xl font-semibold text-stone-900 dark:text-neutral-100">Crear cuenta</h1>
+                            <input
+                                className="mb-2 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                placeholder="nombre (opcional)"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                            <input
+                                className="mb-2 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                placeholder="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                            <input
+                                className="mb-4 w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                placeholder="contraseña (min 6)"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <button className="w-full rounded-lg bg-black px-3 py-2 text-white dark:bg-white dark:text-black">
+                                Registrarme
+                            </button>
+                            <Link href="/login" className="mt-2 block text-center text-sm underline">
+                                Ya tengo cuenta
+                            </Link>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
