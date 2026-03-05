@@ -983,6 +983,20 @@ export default function NotesWorkspace({
                       }
                     }}
                     onKeyDown={(e) => {
+                      if (e.metaKey || e.ctrlKey) {
+                        const key = e.key.toLowerCase();
+                        if (key === "b") {
+                          e.preventDefault();
+                          applyCommand("bold");
+                          return;
+                        }
+                        if (key === "i") {
+                          e.preventDefault();
+                          applyCommand("italic");
+                          return;
+                        }
+                      }
+
                       const selectedImage = selectedImageRef.current;
                       if (selectedImage && (e.key === "Backspace" || e.key === "Delete")) {
                         e.preventDefault();
@@ -1361,6 +1375,20 @@ export default function NotesWorkspace({
                     }
                   }}
                   onKeyDown={(e) => {
+                    if (e.metaKey || e.ctrlKey) {
+                      const key = e.key.toLowerCase();
+                      if (key === "b") {
+                        e.preventDefault();
+                        applyCommand("bold");
+                        return;
+                      }
+                      if (key === "i") {
+                        e.preventDefault();
+                        applyCommand("italic");
+                        return;
+                      }
+                    }
+
                     const selectedImage = selectedImageRef.current;
                     if (selectedImage && (e.key === "Backspace" || e.key === "Delete")) {
                       e.preventDefault();
