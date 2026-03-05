@@ -226,6 +226,7 @@ export default function NotesWorkspace({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const lastFailedSaveKeyRef = useRef<string | null>(null);
+  const lastHydratedNoteIdRef = useRef<string | null>(initialNotes[0]?.id ?? null);
 
   const selected = useMemo(
     () => notes.find((n) => n.id === selectedId) ?? null,
@@ -311,13 +312,25 @@ export default function NotesWorkspace({
     if (!editor) return;
     if (!selected) {
       editor.innerHTML = "";
+      lastHydratedNoteIdRef.current = null;
       return;
     }
-    const nextHtml = selected.content ?? "";
+
+    const switchedNote = lastHydratedNoteIdRef.current !== selected.id;
+    const mountedMobileEditor =
+      isMobileLayout && mobileView === "editor" && editor.innerHTML.trim() === "";
+    if (!switchedNote && !mountedMobileEditor) return;
+
+    const active = document.activeElement as HTMLElement | null;
+    const editorFocused = active === editor || (active ? editor.contains(active) : false);
+    if (editorFocused && !switchedNote) return;
+
+    const nextHtml = switchedNote ? (selected.content ?? "") : draftContent;
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
-  }, [selected?.id, selected?.content, mobileView, isMobileLayout, selected]);
+    lastHydratedNoteIdRef.current = selected.id;
+  }, [selected?.id, mobileView, isMobileLayout, draftContent, selected]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
