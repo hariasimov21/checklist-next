@@ -1066,7 +1066,7 @@ export default function NotesWorkspace({
             </button>
           </div>
 
-          <div className="overflow-y-auto border-b border-stone-200 dark:border-neutral-700 max-h-56">
+          <div className="min-h-0 flex-1 overflow-y-auto border-b border-stone-200 dark:border-neutral-700">
             <button
               type="button"
               onClick={() => selectFolder(null)}
