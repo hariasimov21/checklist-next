@@ -584,6 +584,13 @@ export default function NotesWorkspace({
   }, [selectedFolderId, loadDraft]);
 
   const handleDeleteNote = useCallback((noteId: string) => {
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) return;
+
+    const noteTitle = (note.title || "Nueva nota").trim();
+    const confirmed = window.confirm(`¿Seguro que quieres eliminar la nota "${noteTitle}"?`);
+    if (!confirmed) return;
+
     const remaining = notes.filter((n) => n.id !== noteId);
     setNotes(remaining);
 
