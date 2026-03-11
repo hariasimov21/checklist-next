@@ -1053,7 +1053,7 @@ export default function NotesWorkspace({
         )}
       </main>
       ) : (
-      <main className="w-full px-3 lg:px-6 py-4 grid grid-cols-1 lg:grid-cols-[240px_360px_minmax(0,1fr)] xl:grid-cols-[280px_420px_minmax(0,1fr)] gap-4 h-auto lg:h-[calc(100vh-76px)]">
+      <main className="w-full px-3 lg:px-6 py-4 grid grid-cols-1 lg:grid-cols-[240px_240px_minmax(0,1fr)] xl:grid-cols-[280px_280px_minmax(0,1fr)] gap-4 h-auto lg:h-[calc(100vh-76px)]">
         <aside className="rounded-2xl border border-stone-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex flex-col min-h-[220px] lg:min-h-0">
           <div className="px-4 py-3 border-b border-stone-200 dark:border-neutral-700 font-semibold flex items-center justify-between">
             <span>Carpetas</span>
